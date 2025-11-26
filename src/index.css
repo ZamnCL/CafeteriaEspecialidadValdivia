@@ -1,0 +1,121 @@
+/* --- src/index.css --- */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --coffee-black: #1a1a1a;
+  --coffee-dark: #5c3d2e;    /* Café oscuro elegante */
+  --coffee-medium: #6f4e37;
+  --coffee-accent: #c4a484;  /* Dorado suave */
+  --wine-red: #8b4949;       /* Vino tinto para detalles */
+  --off-white: #faf8f5;      /* Crema suave */
+  --beige-gradient: linear-gradient(to bottom, #f2e6d8 0%, #e8dcc8 100%);
+  
+  --font-main: 'Poppins', sans-serif;
+  --shadow-sm: 0 4px 12px rgba(92, 61, 46, 0.15);
+  --shadow-hover: 0 10px 20px rgba(92, 61, 46, 0.2);
+}
+
+body {
+  font-family: var(--font-main);
+  /* Fondo general beige cálido */
+  background: var(--beige-gradient); 
+  background-attachment: fixed; 
+  color: var(--coffee-black);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-main);
+  color: var(--coffee-dark);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Botones Personalizados */
+.btn-coffee {
+  background: linear-gradient(135deg, #7d4e57 0%, #8b4949 100%);
+  border: none;
+  color: #f2e6d8;
+  padding: 10px 24px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.btn-coffee:hover {
+  background: linear-gradient(135deg, #8b4949 0%, #a0522d 100%);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Utilidades de Texto */
+.text-coffee { color: var(--coffee-dark) !important; }
+.text-wine { color: var(--wine-red) !important; }
+
+/* Animaciones */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeInUp 0.8s ease-out forwards; }
+
+/* --- src/index.css (Añadir al final) --- */
+
+/* BOTÓN PILL SÓLIDO (Como "+ Nuevo Producto") */
+.btn-coffee-pill {
+  background-color: var(--coffee-accent);
+  color: #1a1a1a;
+  border: 1px solid var(--coffee-accent);
+  border-radius: 50px;
+  padding: 10px 30px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-coffee-pill:hover {
+  background-color: #a08468;
+  border-color: #a08468;
+  color: #1a1a1a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(196, 164, 132, 0.4);
+}
+
+.nav-pills-coffee {
+  gap: 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.nav-pills-coffee .nav-link {
+  color: var(--coffee-dark);
+  background-color: transparent;
+  border: 1px solid var(--coffee-dark);
+  border-radius: 50px;
+  padding: 8px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-pills-coffee .nav-link:hover {
+  background-color: rgba(92, 61, 46, 0.1);
+}
+
+.nav-pills-coffee .nav-link.active {
+  background-color: var(--coffee-dark) !important;
+  color: #f5f1ec !important;
+  border-color: var(--coffee-dark);
+}

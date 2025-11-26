@@ -1,0 +1,103 @@
+/* --- src/ProductCards.css --- */
+
+/* Tarjeta contenedora */
+.card-aesthetic {
+  border: none;
+  border-radius: 16px; /* Bordes redondeados visibles */
+  background: #fff;
+  overflow: hidden; /* Recorta la imagen en las esquinas */
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-aesthetic:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(92, 61, 46, 0.15);
+}
+
+/* Contenedor Imagen 1:1 */
+.image-container-square {
+  width: 100%;
+  aspect-ratio: 1 / 1; /* FUERZA CUADRADO PERFECTO */
+  position: relative;
+  overflow: hidden;
+  background-color: #f8f9fa;
+}
+
+.image-container-square img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* La imagen llena todo el espacio sin bordes blancos */
+  transition: transform 0.5s ease;
+}
+
+.card-aesthetic:hover .image-container-square img {
+  transform: scale(1.05);
+}
+
+/* Cuerpo de la tarjeta */
+.card-body-aesthetic {
+  padding: 1rem; /* Padding reducido para que se vea más estilizada */
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  justify-content: space-between;
+}
+
+.category-tag {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #8b4949; /* Color vino */
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+}
+
+.product-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 0.3rem;
+  line-height: 1.4;
+}
+
+.price-tag {
+  font-size: 1.1rem;
+  color: #5c3d2e; /* Color café */
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+/* Botones Pill */
+.btn-aesthetic {
+  background-color: #1a1a1a;
+  color: white;
+  border-radius: 50px;
+  padding: 8px 0;
+  width: 100%;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid #1a1a1a;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-aesthetic:hover {
+  background-color: #5c3d2e;
+  border-color: #5c3d2e;
+}
+
+.btn-aesthetic.outline {
+  background: transparent;
+  color: #1a1a1a;
+}
+
+.btn-aesthetic.outline:hover {
+  background: #1a1a1a;
+  color: white;
+}

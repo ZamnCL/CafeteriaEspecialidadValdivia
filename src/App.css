@@ -1,0 +1,276 @@
+/* =========================================
+   src/App.css - ESTILOS GLOBALES Y LIMPIOS
+   ========================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Paleta de Colores */
+  --coffee-dark: #5c3d2e;    /* Café oscuro principal */
+  --coffee-light: #6f4e37;   /* Café medio */
+  --coffee-accent: #c4a484;  /* Dorado/Beige */
+  --wine-red: #8b4949;       /* Vino tinto (detalles) */
+  
+  /* Fondos */
+  --bg-body: linear-gradient(to bottom, #f2e6d8 0%, #e8dcc8 100%);
+  --bg-white: #ffffff;
+  --bg-off-white: #f8f9fa;
+
+  /* Sombras */
+  --shadow-sm: 0 4px 12px rgba(92, 61, 46, 0.1);
+  --shadow-card: 0 10px 25px rgba(92, 61, 46, 0.08);
+  --shadow-hover: 0 20px 40px rgba(92, 61, 46, 0.15);
+
+  /* Fuente */
+  --font-main: 'Poppins', sans-serif;
+}
+
+/* --- RESET BÁSICO --- */
+body {
+  font-family: var(--font-main);
+  background: var(--bg-body);
+  background-attachment: fixed; /* Efecto elegante */
+  color: #1a1a1a;
+  margin: 0;
+  min-height: 100vh;
+}
+
+a { text-decoration: none; }
+
+/* =========================================
+   1. NAVBAR
+   ========================================= */
+.navbar-custom {
+  background: linear-gradient(to bottom, #f2e6d8 0%, #e8dcc8 100%) !important;
+  border-bottom: 2px solid var(--coffee-dark) !important;
+  box-shadow: var(--shadow-sm);
+  padding: 0.8rem 0;
+}
+
+.navbar-brand {
+  font-family: var(--font-main);
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: var(--coffee-dark) !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.nav-link {
+  color: var(--coffee-dark) !important;
+  font-weight: 600;
+  margin: 0 0.5rem;
+  transition: color 0.3s;
+}
+
+.nav-link:hover { color: var(--wine-red) !important; }
+
+/* =========================================
+   2. HERO SECTION (PORTADA)
+   ========================================= */
+.hero-section {
+  position: relative;
+  height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #fff;
+  margin-top: -80px; /* Compensa navbar fijo */
+  padding-top: 80px;
+  background-attachment: fixed;
+}
+
+.hero-content h1 {
+  text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+/* =========================================
+   3. PRODUCT CARDS (DISEÑO AESTHETIC)
+   ========================================= */
+.card-aesthetic {
+  border: none !important;
+  border-radius: 20px !important;
+  background: var(--bg-white);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: all 0.4s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-aesthetic:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Imagen 1:1 (Cuadrada Perfecta) */
+.image-container-square {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-off-white); /* Gris muy claro, ya no amarillo */
+}
+
+.image-container-square img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Llena el espacio */
+  object-position: center;
+  transition: transform 0.6s ease;
+}
+
+.card-aesthetic:hover .image-container-square img {
+  transform: scale(1.08);
+}
+
+/* Cuerpo de la Tarjeta */
+.card-body-aesthetic {
+  padding: 1.2rem 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  justify-content: space-between;
+}
+
+.category-tag {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--wine-red);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.product-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2c2c2c;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.price-tag {
+  font-size: 1rem;
+  color: var(--coffee-dark);
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+/* Botones dentro de la Card */
+.btn-aesthetic {
+  background-color: #1a1a1a;
+  color: white;
+  border-radius: 50px;
+  padding: 10px 0;
+  width: 100%;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: 1px solid #1a1a1a;
+  transition: background 0.3s;
+}
+
+.btn-aesthetic:hover {
+  background-color: var(--coffee-dark);
+  border-color: var(--coffee-dark);
+}
+
+.btn-aesthetic.outline {
+  background: transparent;
+  color: #1a1a1a;
+}
+
+.btn-aesthetic.outline:hover {
+  background: #1a1a1a;
+  color: white;
+}
+
+/* =========================================
+   4. BOTONES GLOBALES (PILLS)
+   ========================================= */
+.btn-coffee-pill {
+  background-color: var(--coffee-accent);
+  color: #1a1a1a;
+  border: 1px solid var(--coffee-accent);
+  border-radius: 50px;
+  padding: 10px 30px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.btn-coffee-pill:hover {
+  background-color: #a08468;
+  border-color: #a08468;
+  color: #1a1a1a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(196, 164, 132, 0.4);
+}
+
+/* =========================================
+   5. FILTROS Y TABS
+   ========================================= */
+.nav-pills-coffee {
+  gap: 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.nav-pills-coffee .nav-link {
+  color: var(--coffee-dark);
+  background-color: transparent;
+  border: 1px solid var(--coffee-dark);
+  border-radius: 50px;
+  padding: 8px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-pills-coffee .nav-link.active {
+  background-color: var(--coffee-dark) !important;
+  color: #f5f1ec !important;
+}
+
+/* =========================================
+   6. FOOTER
+   ========================================= */
+.footer-custom {
+  background: linear-gradient(180deg, #2c2c2c 0%, #1a1a1a 100%);
+  color: #f5f1ec;
+  padding: 4rem 0 2rem;
+  margin-top: auto;
+}
+
+.footer-section h4 {
+  color: var(--coffee-accent);
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  margin-bottom: 1.2rem;
+}
+
+.footer-section a {
+  color: #999;
+  display: block;
+  margin-bottom: 0.5rem;
+  transition: 0.3s;
+}
+
+.footer-section a:hover {
+  color: #fff;
+  padding-left: 5px;
+}
