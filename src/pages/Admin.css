@@ -234,3 +234,39 @@
   display: inline-block;
   border: 1px solid rgba(255,255,255,0.05);
 }
+
+.stock-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Fila individual: Etiqueta + Valor */
+.stock-row {
+  display: grid;
+  grid-template-columns: 45px 1fr; /* 45px para el nombre, resto para el número */
+  align-items: center;
+  gap: 10px;
+}
+
+.stock-label {
+  text-align: right; /* Alinea "250g" a la derecha, pegado al número */
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
+}
+
+.stock-value {
+  text-align: left; /* El número se alinea a la izquierda para crear la columna recta */
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* Estilo para el Infinito Único */
+.stock-infinite-single {
+  font-size: 1.5rem;
+  color: var(--coffee-accent);
+  display: flex;
+  align-items: center;
+  height: 100%;
+}

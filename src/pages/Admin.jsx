@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Table, Card, Alert, Badge, Spinner, InputGroup, Tab, Tabs, Nav } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Table, Card, Alert, Badge, Spinner, InputGroup, Tab, Tabs, Nav, Modal } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
-import { FaTrash, FaEdit, FaPlus, FaInfinity } from 'react-icons/fa';
+import { FaTrash, FaEdit, FaPlus, FaInfinity, FaMugHot, FaSnowflake, FaList, FaFilter } from 'react-icons/fa';
 import './Admin.css';
 
 function Admin() {
   // --- ESTADOS ---
   const [vista, setVista] = useState('lista'); 
   const [modoEdicion, setModoEdicion] = useState(false);
+  
+  // FILTROS
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
+  const [subFiltroPrep, setSubFiltroPrep] = useState('todas');
 
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -19,11 +22,13 @@ function Admin() {
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState({ type: '', text: '' });
 
-  // --- FORMULARIO ---
+  // NUEVA CATEGORÍA
+  const [showCatModal, setShowCatModal] = useState(false);
+  const [newCatData, setNewCatData] = useState({ nombre: '' });
+
+  // FORMULARIO PRODUCTO
   const initialFormState = {
-    id_producto: null,
-    nombre: '', descripcion: '', imagen: '',
-    id_categoria: '', estado: 'Publicado',
+    id_producto: null, nombre: '', descripcion: '', imagen: '', id_categoria: '', estado: 'Publicado',
     pais: '', notas: '', altura: '', variedad: '', proceso: '',
     unico_precio: '', unico_stock: 10
   };
@@ -69,18 +74,16 @@ function Admin() {
   // --- HELPERS ---
   const getCategoriaNombre = (id) => categorias.find(c => c.id_categoria == id)?.nombre.toLowerCase() || '';
   const esCafeGrano = (id) => { const n = getCategoriaNombre(id); return n.includes('grano') || n.includes('tostado') || n.includes('origen'); };
-  const esPreparacion = (id) => { const n = getCategoriaNombre(id); return n.includes('preparaci') || n.includes('bebida') || n.includes('barra') || n.includes('filtrado'); };
+  const esPreparacion = (id) => { const n = getCategoriaNombre(id); return n.includes('preparación') || n.includes('filtrado') || n.includes('bebida') || n.includes('barra'); };
 
   // --- MANEJADORES ---
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleStdChange = (k, f, v) => setFormatosStd(prev => ({ ...prev, [k]: { ...prev[k], [f]: v } }));
 
-  // SUBIDA DE IMAGEN
   const subirImagen = async (file) => {
     try {
       setUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
+      const fileName = `${Date.now()}.${file.name.split('.').pop()}`;
       const { error: uploadError } = await supabase.storage.from('imagenes-productos').upload(fileName, file);
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('imagenes-productos').getPublicUrl(fileName);
@@ -100,29 +103,18 @@ function Admin() {
     if (url) setFormData(prev => ({ ...prev, imagen: url }));
   };
 
-  // NAVEGACIÓN
-  const irACrear = () => {
-    setFormData(initialFormState);
-    setFormatosStd({ g250: { active: true, precio: '', stock: 10 }, g500: { active: true, precio: '', stock: 5 }, g1kg: { active: true, precio: '', stock: 2 } });
-    setModoEdicion(false);
-    setVista('formulario');
-  };
-
-  const irAEditar = (prod) => {
-    setFormData({
-      id_producto: prod.id_producto, nombre: prod.nombre, descripcion: prod.descripcion || '', imagen: prod.imagen || '',
-      id_categoria: prod.id_categoria, estado: prod.estado, pais: prod.pais || '', notas: prod.notas || '',
-      altura: prod.altura || '', variedad: prod.variedad || '', proceso: prod.proceso || '',
-      unico_precio: prod.formatos?.[0]?.precio || '', unico_stock: prod.formatos?.[0]?.stock || 0
-    });
-    setModoEdicion(true);
-    setVista('formulario');
-  };
-
-  const eliminarProducto = async (id) => {
-    if(!confirm("¿Eliminar producto?")) return;
-    await supabase.from('productos').delete().eq('id_producto', id);
-    fetchData();
+  const guardarCategoria = async () => {
+    if (!newCatData.nombre) return alert("Nombre obligatorio");
+    try {
+      const { error } = await supabase.from('categoria').insert([{ nombre: newCatData.nombre }]);
+      if (error) throw error;
+      setMsg({ type: 'success', text: 'Categoría creada.' });
+      setShowCatModal(false);
+      setNewCatData({ nombre: '' });
+      fetchData();
+    } catch (error) {
+      alert(error.message);
+    }
   };
 
   const guardarProducto = async (e) => {
@@ -140,10 +132,43 @@ function Admin() {
       };
 
       let prodId = formData.id_producto;
+
       if (modoEdicion) {
-        await supabase.from('productos').update(datos).eq('id_producto', prodId);
-        setMsg({ type: 'success', text: 'Actualizado correctamente.' });
+        // 1. Actualizar PRODUCTO
+        const { error: errProd } = await supabase.from('productos').update(datos).eq('id_producto', prodId);
+        if (errProd) throw errProd;
+
+        // 2. Actualizar/Crear FORMATOS (Lógica de Auto-Reparación)
+        if (!isCafe) {
+           // Verificar si existe formato
+           const { data: formatosExistentes } = await supabase.from('formatos').select('id_formato').eq('id_producto', prodId);
+           
+           if (formatosExistentes && formatosExistentes.length > 0) {
+               // ACTUALIZAR
+               const { error: errFmt } = await supabase.from('formatos')
+                 .update({ 
+                   precio: parseFloat(formData.unico_precio),
+                   stock: isPrep ? 99999 : parseInt(formData.unico_stock)
+                 })
+                 .eq('id_producto', prodId);
+               if (errFmt) throw errFmt;
+           } else {
+               // CREAR SI FALTA (Repara el error del V60 Switch)
+               const { error: errNewFmt } = await supabase.from('formatos').insert([{
+                   id_producto: prodId,
+                   nombre: isPrep ? 'Estándar' : 'Unidad',
+                   precio: parseFloat(formData.unico_precio),
+                   stock: isPrep ? 99999 : parseInt(formData.unico_stock),
+                   controlar_stock: !isPrep
+               }]);
+               if (errNewFmt) throw errNewFmt;
+           }
+        }
+        
+        setMsg({ type: 'success', text: 'Producto actualizado correctamente.' });
+
       } else {
+        // CREAR NUEVO
         const { data: nuevo, error } = await supabase.from('productos').insert([datos]).select().single();
         if (error) throw error;
         prodId = nuevo.id_producto;
@@ -154,7 +179,7 @@ function Admin() {
             if (formatosStd.g500.active) fmts.push({ id_producto: prodId, nombre: '500g', precio: parseFloat(formatosStd.g500.precio), stock: parseInt(formatosStd.g500.stock) });
             if (formatosStd.g1kg.active) fmts.push({ id_producto: prodId, nombre: '1kg', precio: parseFloat(formatosStd.g1kg.precio), stock: parseInt(formatosStd.g1kg.stock) });
         } else if (isPrep) {
-            fmts.push({ id_producto: prodId, nombre: 'Estándar', precio: parseFloat(formData.unico_precio), stock: 99999 });
+            fmts.push({ id_producto: prodId, nombre: 'Estándar', precio: parseFloat(formData.unico_precio), stock: 99999, controlar_stock: false });
         } else {
             fmts.push({ id_producto: prodId, nombre: 'Unidad', precio: parseFloat(formData.unico_precio), stock: parseInt(formData.unico_stock) });
         }
@@ -164,11 +189,53 @@ function Admin() {
       fetchData();
       setVista('lista');
     } catch (error) {
-      setMsg({ type: 'danger', text: error.message });
+      setMsg({ type: 'danger', text: "Error: " + error.message });
     }
   };
 
-  const productosFiltrados = filtroCategoria === 'todos' ? productos : productos.filter(p => p.id_categoria == filtroCategoria);
+  const eliminarProducto = async (id) => {
+    if(!confirm("¿Eliminar?")) return;
+    await supabase.from('productos').delete().eq('id_producto', id);
+    fetchData();
+  };
+
+  const irACrear = () => { 
+      setFormData(initialFormState); 
+      setModoEdicion(false); 
+      setFormatosStd({ g250: { active: true, precio: '', stock: 10 }, g500: { active: true, precio: '', stock: 5 }, g1kg: { active: true, precio: '', stock: 2 } });
+      setVista('formulario'); 
+  };
+
+  const irAEditar = (prod) => {
+    setFormData({
+      ...prod, 
+      unico_precio: prod.formatos?.[0]?.precio || '', 
+      unico_stock: prod.formatos?.[0]?.stock || 0,
+      pais: prod.pais || '', notas: prod.notas || '', altura: prod.altura || '', variedad: prod.variedad || '', proceso: prod.proceso || ''
+    });
+    setModoEdicion(true); 
+    setVista('formulario');
+  };
+
+  const productosFiltrados = productos.filter(p => {
+    const esPrep = esPreparacion(p.id_categoria);
+    const catNombre = getCategoriaNombre(p.id_categoria);
+
+    if (filtroCategoria === 'todos') {
+      return !esPrep; 
+    } 
+    else if (filtroCategoria === 'preparaciones') {
+      if (!esPrep) return false;
+      if (subFiltroPrep === 'calientes') return catNombre.includes('caliente');
+      if (subFiltroPrep === 'frias') return catNombre.includes('fría') || catNombre.includes('fria');
+      if (subFiltroPrep === 'filtrados') return catNombre.includes('filtrado');
+      return true;
+    } 
+    else {
+      return p.id_categoria == filtroCategoria;
+    }
+  });
+
   const isCafe = esCafeGrano(formData.id_categoria);
   const isPrep = esPreparacion(formData.id_categoria);
 
@@ -187,9 +254,14 @@ function Admin() {
                   <h5 className="mb-0 text-coffee-title" style={{ color: 'var(--coffee-accent)' }}>
                     Gestión de Productos
                   </h5>
-                  <button className="btn btn-coffee-pill shadow-none" onClick={irACrear}>
-                    <FaPlus /> Nuevo Producto
-                  </button>
+                  <div className="d-flex flex-column align-items-end gap-2">
+                    <button className="btn btn-coffee-pill shadow-none" onClick={irACrear}>
+                      <FaPlus /> Nuevo Producto
+                    </button>
+                    <button className="btn btn-sm text-decoration-underline border-0" style={{color: 'var(--coffee-accent)', background: 'transparent'}} onClick={() => setShowCatModal(true)}>
+                      + Nueva Categoría
+                    </button>
+                  </div>
                 </div>
 
                 <Nav variant="pills" className="mb-4 nav-pills-coffee">
@@ -198,7 +270,14 @@ function Admin() {
                       Todos
                     </Nav.Link>
                   </Nav.Item>
-                  {categorias.map(cat => (
+                  
+                  <Nav.Item>
+                    <Nav.Link eventKey="preparaciones" onClick={() => setFiltroCategoria('preparaciones')} active={filtroCategoria === 'preparaciones'}>
+                      Preparaciones
+                    </Nav.Link>
+                  </Nav.Item>
+
+                  {categorias.filter(cat => !esPreparacion(cat.id_categoria)).map(cat => (
                     <Nav.Item key={cat.id_categoria}>
                       <Nav.Link eventKey={cat.id_categoria} onClick={() => setFiltroCategoria(cat.id_categoria)} active={filtroCategoria == cat.id_categoria}>
                         {cat.nombre}
@@ -206,6 +285,15 @@ function Admin() {
                     </Nav.Item>
                   ))}
                 </Nav>
+
+                {filtroCategoria === 'preparaciones' && (
+                  <div className="mb-4 d-flex justify-content-center gap-2 animate-fade-in">
+                    <Button size="sm" variant={subFiltroPrep === 'todas' ? 'light' : 'outline-light'} onClick={() => setSubFiltroPrep('todas')} className="rounded-pill px-3 fw-bold"><FaList className="me-2"/>Todas</Button>
+                    <Button size="sm" variant={subFiltroPrep === 'calientes' ? 'warning' : 'outline-warning'} onClick={() => setSubFiltroPrep('calientes')} className="rounded-pill px-3 fw-bold"><FaMugHot className="me-2"/>Calientes</Button>
+                    <Button size="sm" variant={subFiltroPrep === 'frias' ? 'info' : 'outline-info'} onClick={() => setSubFiltroPrep('frias')} className="rounded-pill px-3 fw-bold"><FaSnowflake className="me-2"/>Frías</Button>
+                    <Button size="sm" variant={subFiltroPrep === 'filtrados' ? 'secondary' : 'outline-secondary'} onClick={() => setSubFiltroPrep('filtrados')} className="rounded-pill px-3 fw-bold"><FaFilter className="me-2"/>Filtrados</Button>
+                  </div>
+                )}
                 
                 {loading ? <div className="text-center p-4"><Spinner animation="border" variant="light"/></div> : (
                   <Table hover responsive className="align-middle table-dark-custom">
@@ -242,30 +330,26 @@ function Admin() {
                           </td>
                           
                           <td>
-                            <div className="d-flex flex-column align-items-start gap-1">
-                              {p.formatos?.map(f => {
-                                const esInfinito = f.stock >= 90000;
-                                return (
-                                  <div key={f.id_formato} className="stock-detail-pill">
-                                    {!esInfinito && <span className="text-white-50 me-2" style={{fontSize:'0.8rem'}}>{f.nombre}:</span>}
-                                    <span className={f.stock < 5 && !esInfinito ? 'text-danger fw-bold' : 'text-white fw-bold'}>
-                                      {esInfinito ? <FaInfinity style={{color: 'var(--coffee-accent)', fontSize: '1rem'}} /> : f.stock}
-                                    </span>
+                            {/* INFINITO: Si es prep O todos los formatos son > 9000 */}
+                            {esPreparacion(p.id_categoria) || (p.formatos?.length > 0 && p.formatos.every(f => f.stock >= 9000)) ? (
+                              <div className="ps-2"><FaInfinity style={{ fontSize: '1.4rem', color: 'var(--coffee-accent)' }} /></div>
+                            ) : (
+                              <div className="d-flex flex-column gap-1">
+                                {p.formatos?.map(f => (
+                                  <div key={f.id_formato} className="stock-pill-grid">
+                                    <span className="stock-label">{f.nombre}:</span>
+                                    <span className={f.stock < 5 ? 'text-danger fw-bold' : 'text-white fw-bold'}>{f.stock}</span>
                                   </div>
-                                );
-                              })}
-                            </div>
+                                ))}
+                              </div>
+                            )}
                           </td>
 
                           <td><Badge bg={p.estado === 'Publicado' ? 'success' : 'secondary'} className="px-3 py-2 rounded-pill">{p.estado}</Badge></td>
                           
                           <td className="text-end" style={{paddingRight: '1.5rem'}}>
-                            <Button size="sm" className="me-2 btn-action-pill" onClick={()=>irAEditar(p)}>
-                              <FaEdit />
-                            </Button>
-                            <Button size="sm" className="btn-action-pill delete" onClick={()=>eliminarProducto(p.id_producto)}>
-                              <FaTrash />
-                            </Button>
+                            <Button size="sm" className="me-2 btn-action-pill" onClick={()=>irAEditar(p)}><FaEdit /></Button>
+                            <Button size="sm" className="btn-action-pill delete" onClick={()=>eliminarProducto(p.id_producto)}><FaTrash /></Button>
                           </td>
                         </tr>
                       ))}
@@ -285,7 +369,7 @@ function Admin() {
               <Card.Body className="p-4">
                 <Form onSubmit={guardarProducto}>
                   <Form.Group className="mb-4">
-                    <Form.Label className="fw-bold text-white-50">Categoría</Form.Label>
+                    <Form.Label className="text-white-50">Categoría</Form.Label>
                     <Form.Select name="id_categoria" value={formData.id_categoria} onChange={handleChange} size="lg" required disabled={modoEdicion}>
                       <option value="">-- Seleccionar --</option>
                       {categorias.map(c => <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>)}
@@ -293,7 +377,7 @@ function Admin() {
                   </Form.Group>
 
                   {formData.id_categoria && (
-                    <div>
+                    <div className="animate-fade-in">
                       <Row className="mb-3">
                         <Col md={8}><Form.Group><Form.Label className="text-white-50">Nombre</Form.Label><Form.Control name="nombre" value={formData.nombre} onChange={handleChange} required /></Form.Group></Col>
                         <Col md={4}><Form.Group><Form.Label className="text-white-50">Estado</Form.Label><Form.Select name="estado" value={formData.estado} onChange={handleChange}><option>Publicado</option><option>Borrador</option></Form.Select></Form.Group></Col>
@@ -324,14 +408,7 @@ function Admin() {
                         <div>
                           {['g250', 'g500', 'g1kg'].map((key) => (
                             <Row key={key} className="align-items-center mb-2">
-                              <Col xs={3}>
-                                <Form.Check 
-                                  type="switch" 
-                                  label={<span className="text-white fw-bold">{key.replace('g','')}</span>}
-                                  checked={formatosStd[key].active} 
-                                  onChange={(e) => handleStdChange(key, 'active', e.target.checked)} 
-                                />
-                              </Col>
+                              <Col xs={3}><Form.Check type="switch" label={<span className="text-white fw-bold">{key.replace('g','')}</span>} checked={formatosStd[key].active} onChange={(e) => handleStdChange(key, 'active', e.target.checked)} /></Col>
                               <Col><InputGroup><InputGroup.Text>$</InputGroup.Text><Form.Control type="number" placeholder="Precio" value={formatosStd[key].precio} onChange={(e) => handleStdChange(key, 'precio', e.target.value)} disabled={!formatosStd[key].active} /></InputGroup></Col>
                               <Col><InputGroup><InputGroup.Text>Stock</InputGroup.Text><Form.Control type="number" value={formatosStd[key].stock} onChange={(e) => handleStdChange(key, 'stock', e.target.value)} disabled={!formatosStd[key].active} /></InputGroup></Col>
                             </Row>
@@ -362,52 +439,18 @@ function Admin() {
           )}
         </Tab>
 
-        <Tab eventKey="ventas" title="Ventas">
-          <Card className="card-admin-dark border-0">
-            <Card.Body>
-              <h5 className="mb-3 text-coffee-title" style={{ color: 'var(--coffee-accent)' }}>Historial de Ventas</h5>
-              {ventas.length === 0 ? <div className="text-center py-5"><h5 className="text-coffee-title" style={{ color: 'var(--coffee-accent)' }}>Sin registros</h5></div> : (
-                <Table striped hover responsive size="sm" className="table-dark-custom">
-                  <thead><tr><th>ID</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
-                  <tbody>
-                    {ventas.map(v => (
-                      <tr key={v.id_orden}>
-                        <td>#{v.id_orden}</td><td>{v.nombre} {v.apellido}</td><td className="fw-bold text-white">${v.total?.toLocaleString()}</td>
-                        <td><Badge bg={v.estado === 'Pagado' ? 'success' : 'warning'}>{v.estado}</Badge></td>
-                        <td>{new Date(v.fecha).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              )}
-            </Card.Body>
-          </Card>
-        </Tab>
-
-        <Tab eventKey="mensajes" title="Mensajes">
-          <Card className="card-admin-dark border-0">
-            <Card.Body>
-              <h5 className="mb-3 text-coffee-title" style={{ color: 'var(--coffee-accent)' }}>Mensajes de Contacto</h5>
-              {mensajes.length === 0 ? <div className="text-center py-5"><h5 className="text-coffee-title" style={{ color: 'var(--coffee-accent)' }}>No hay mensajes</h5></div> : (
-                <Table striped hover responsive size="sm" className="table-dark-custom">
-                  <thead><tr><th>Fecha</th><th>Nombre</th><th>Email</th><th>Mensaje</th></tr></thead>
-                  <tbody>
-                    {mensajes.map(m => (
-                      <tr key={m.id_mensaje}>
-                        <td style={{width:'100px'}}>{new Date(m.fecha).toLocaleDateString()}</td>
-                        <td className="fw-bold text-white">{m.nombre}</td>
-                        <td><a href={`mailto:${m.email}`} className="text-coffee-accent text-decoration-none">{m.email}</a></td>
-                        <td className="text-white-50">{m.mensaje}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              )}
-            </Card.Body>
-          </Card>
-        </Tab>
-
+        <Tab eventKey="ventas" title="Ventas"><Card className="card-admin-dark border-0"><Card.Body><h5 className="text-coffee-title">Ventas</h5><p className="text-center py-5 text-muted">Sin registros</p></Card.Body></Card></Tab>
+        <Tab eventKey="mensajes" title="Mensajes"><Card className="card-admin-dark border-0"><Card.Body><h5 className="text-coffee-title">Mensajes</h5><p className="text-center py-5 text-muted">No hay mensajes</p></Card.Body></Card></Tab>
       </Tabs>
+
+      <Modal show={showCatModal} onHide={() => setShowCatModal(false)} centered contentClassName="card-admin-dark border-0">
+        <Modal.Header closeButton closeVariant="white" className="border-secondary"><Modal.Title className="text-coffee-accent">Nueva Categoría</Modal.Title></Modal.Header>
+        <Modal.Body>
+          <Form.Group className="mb-3"><Form.Label className="text-white-50">Nombre</Form.Label><Form.Control value={newCatData.nombre} onChange={(e) => setNewCatData({nombre: e.target.value})} placeholder="Ej: Té" /></Form.Group>
+          <Button className="btn-coffee-pill w-100 border-0" onClick={guardarCategoria}>Crear</Button>
+        </Modal.Body>
+      </Modal>
+
     </Container>
   );
 }
