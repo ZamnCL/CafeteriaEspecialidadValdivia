@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../supabase/cliente';
 import ProductCarousel from '../components/ProductCarousel';
 import heroBackground from '../assets/hero_background.png';
+import Historia from '../components/Historia';
 
 function Home() {
   const [productos, setProductos] = useState([]);
@@ -71,6 +72,9 @@ function Home() {
           return <div key={cat.id_categoria} className="mb-5"><ProductCarousel title={cat.nombre} products={prods} /></div>;
         })}
       </Container>
+
+      <Historia />
+
     </>
   );
 }
