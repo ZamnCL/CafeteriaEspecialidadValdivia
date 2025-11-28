@@ -25,7 +25,7 @@ function Layout() {
             <Nav className="mx-auto align-items-center">
               <Nav.Link as={Link} to="/">Inicio</Nav.Link>
               <Nav.Link as={Link} to="/catalogo">Tienda</Nav.Link>
-              <Nav.Link as={Link} to="#">Contacto</Nav.Link>
+              <Nav.Link as={Link} to="/contacto">Contacto</Nav.Link>
             </Nav>
 
             <Nav className="align-items-center gap-3 mt-3 mt-lg-0">

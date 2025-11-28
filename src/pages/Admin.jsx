@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Table, Card, Alert, Badge, Spinner, InputGroup, Tab, Tabs, Nav, Modal, Image } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
+import emailjs from '@emailjs/browser';
 import { FaTrash, FaEdit, FaPlus, FaInfinity, FaMugHot, FaSnowflake, FaList, FaFilter, FaSearch, FaCheck, FaTimes, FaEye, FaClock, FaCheckCircle, FaBan, FaHistory } from 'react-icons/fa';
 import './Admin.css';
 
@@ -9,13 +10,11 @@ function Admin() {
   const [vista, setVista] = useState('lista'); 
   const [modoEdicion, setModoEdicion] = useState(false);
   
-  // FILTROS PRODUCTOS
+  // FILTROS
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
   const [subFiltroPrep, setSubFiltroPrep] = useState('todas');
   const [busqueda, setBusqueda] = useState(''); 
-
-  // FILTROS VENTAS (NUEVO)
-  const [filtroVentas, setFiltroVentas] = useState('pendientes'); // Por defecto mostramos lo urgente
+  const [filtroVentas, setFiltroVentas] = useState('pendientes');
 
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -79,12 +78,61 @@ function Admin() {
     }
   };
 
-  // --- LOGICA VENTAS ---
+  // --- 📧 FUNCIÓN CORREO ACTUALIZACIÓN (CON TUS DATOS) ---
+  const enviarCorreoEstado = (venta, nuevoEstado) => {
+    const isApproved = nuevoEstado === 'Completado';
+    
+    // TUS CREDENCIALES (Extraídas de tu archivo)
+    const serviceID = 'service_94ynerp'; 
+    const templateID = 'template_vz8y98i'; 
+    const publicKey = 'BBJajnSVNxciJjOo3'; 
+
+    const actionLink = isApproved 
+      ? `${window.location.origin}/mi-cuenta` 
+      : `${window.location.origin}/rectificar-pago/${venta.id_orden}`;
+
+    // Validar email antes de enviar
+    const emailDestino = venta.email_contact || venta.email;
+    
+    if (!emailDestino) {
+      console.error("❌ Error: No hay email de destino para esta orden.");
+      return;
+    }
+
+    const params = {
+      to_email: emailDestino,
+      to_name: venta.nombre || "Cliente",
+      order_id: venta.id_orden,
+      status_title: isApproved ? '¡Pago Aprobado! 🎉' : 'Problema con tu Comprobante ⚠️',
+      message: isApproved 
+        ? 'Hemos validado tu transferencia exitosamente. Estamos preparando tu pedido.' 
+        : 'No pudimos validar la transferencia con la imagen enviada. Por favor sube una nueva foto.',
+      action_text: isApproved ? 'Ver Mi Pedido' : 'Subir Nuevo Comprobante',
+      action_link: actionLink
+    };
+
+    console.log("--- INTENTANDO ENVIAR CORREO ---");
+    console.log("Template:", templateID);
+    console.log("Params:", params);
+
+    emailjs.send(serviceID, templateID, params, publicKey)
+      .then((response) => console.log('✅ Correo enviado con éxito', response.status, response.text))
+      .catch((err) => {
+        console.error('❌ Error enviando correo:', err);
+        alert(`Error al enviar correo: ${err.text || 'Revisa la consola'}`);
+      });
+  };
+
+  // --- LÓGICA VENTAS ---
   const cambiarEstadoOrden = async (idOrden, nuevoEstado) => {
     const accion = nuevoEstado === 'Completado' ? 'Aprobar' : 'Rechazar';
     if (!confirm(`¿Estás seguro de ${accion} esta venta?`)) return;
     
     try {
+      // 1. Buscar la venta para tener los datos del correo
+      const ventaActual = ventas.find(v => v.id_orden === idOrden);
+
+      // 2. Actualizar en BD
       const { error } = await supabase
         .from('ordenes')
         .update({ estado: nuevoEstado })
@@ -92,8 +140,15 @@ function Admin() {
       
       if (error) throw error;
       
-      setMsg({ type: 'success', text: `Orden #${idOrden} actualizada a ${nuevoEstado}` });
-      fetchData(); // Recargamos para que se mueva de pestaña
+      // 3. Enviar Correo
+      if (ventaActual) {
+        enviarCorreoEstado(ventaActual, nuevoEstado);
+      } else {
+        console.warn("No se encontró la venta localmente para enviar el correo.");
+      }
+
+      setMsg({ type: 'success', text: `Orden #${idOrden} actualizada a ${nuevoEstado}.` });
+      fetchData(); 
     } catch (err) {
       alert(err.message);
     }
@@ -104,7 +159,7 @@ function Admin() {
     setShowComprobante(true);
   };
 
-  // Filtrado de Ventas
+  // Filtrado Ventas
   const ventasFiltradas = ventas.filter(v => {
     if (filtroVentas === 'todos') return true;
     if (filtroVentas === 'pendientes') return v.estado === 'Por Confirmar';
@@ -113,7 +168,7 @@ function Admin() {
     return true;
   });
 
-  // --- HELPERS Y MANEJADORES DE PRODUCTO ---
+  // --- HELPERS ---
   const getCategoriaNombre = (id) => categorias.find(c => c.id_categoria == id)?.nombre.toLowerCase() || '';
   const esCafeGrano = (id) => { const n = getCategoriaNombre(id); return n.includes('grano') || n.includes('tostado') || n.includes('origen'); };
   const esPreparacion = (id) => { const n = getCategoriaNombre(id); return n.includes('preparación') || n.includes('filtrado') || n.includes('bebida') || n.includes('barra'); };
@@ -193,7 +248,7 @@ function Admin() {
       if (modoEdicion) {
         const { error: errProd } = await supabase.from('productos').update(datos).eq('id_producto', prodId);
         if (errProd) throw errProd;
-        
+
         if (!isCafe) {
            const { data: formatosExistentes } = await supabase.from('formatos').select('id_formato').eq('id_producto', prodId);
            if (formatosExistentes && formatosExistentes.length > 0) {
@@ -213,7 +268,7 @@ function Admin() {
         const { data: nuevo, error } = await supabase.from('productos').insert([datos]).select().single();
         if (error) throw error;
         prodId = nuevo.id_producto;
-        
+
         let fmts = [];
         if (isCafe) {
             if (formatosStd.g250.active) fmts.push({ id_producto: prodId, nombre: '250g', precio: parseFloat(formatosStd.g250.precio), stock: parseInt(formatosStd.g250.stock) });
@@ -330,11 +385,11 @@ function Admin() {
               </Card.Body>
             </Card>
           ) : (
-             <Card className="card-admin-dark border-0"><Card.Body className="p-4"><Form onSubmit={guardarProducto}><h5 className="text-coffee-accent mb-4">{modoEdicion?'Editar':'Nuevo'} Producto</h5>{/* ... FORMULARIO COMPLETO ... */}<Button variant="outline-light" onClick={()=>setVista('lista')}>Cancelar</Button><Button type="submit" className="ms-2 btn-coffee-pill">Guardar</Button></Form></Card.Body></Card>
+             <Card className="card-admin-dark border-0"><Card.Body className="p-4"><Form onSubmit={guardarProducto}><h5 className="text-coffee-accent mb-4">{modoEdicion?'Editar':'Nuevo'} Producto</h5><Row className="mb-3"><Col md={8}><Form.Group><Form.Label className="text-white-50">Nombre</Form.Label><Form.Control name="nombre" value={formData.nombre} onChange={handleChange} required /></Form.Group></Col><Col md={4}><Form.Group><Form.Label className="text-white-50">Estado</Form.Label><Form.Select name="estado" value={formData.estado} onChange={handleChange}><option>Publicado</option><option>Borrador</option></Form.Select></Form.Group></Col></Row>{isCafe && (<div className="p-3 rounded mb-4 border border-secondary" style={{backgroundColor: 'rgba(255,255,255,0.05)'}}><h6 className="text-coffee-accent fw-bold mb-3">Datos del Café</h6><Row className="mb-2"><Col><Form.Control name="pais" value={formData.pais} onChange={handleChange} placeholder="País" /></Col><Col><Form.Control name="altura" value={formData.altura} onChange={handleChange} placeholder="Altura" /></Col></Row><Row className="mb-2"><Col><Form.Control name="variedad" value={formData.variedad} onChange={handleChange} placeholder="Variedad" /></Col><Col><Form.Control name="proceso" value={formData.proceso} onChange={handleChange} placeholder="Proceso" /></Col></Row><Form.Control name="notas" value={formData.notas} onChange={handleChange} placeholder="Notas de cata" /></div>)}<Form.Group className="mb-3"><Form.Label className="text-white-50">Descripción</Form.Label><Form.Control as="textarea" name="descripcion" value={formData.descripcion} onChange={handleChange} /></Form.Group><Form.Group className="mb-4"><Form.Label className="text-white-50">Imagen</Form.Label><Form.Control type="file" accept="image/*" onChange={handleImageUpload} disabled={uploading} className="mb-2"/><Form.Control type="text" name="imagen" value={formData.imagen} onChange={handleChange} placeholder="URL" style={{backgroundColor: 'rgba(0,0,0,0.3)', color: '#fff', border:'1px solid #555'}} />{uploading && <span className="text-warning small">Subiendo...</span>}{formData.imagen && !uploading && <div className="mt-2"><img src={formData.imagen} alt="Previsualización" style={{height: '100px', borderRadius: '8px', border: '1px solid var(--coffee-accent)', objectFit: 'cover'}} /></div>}</Form.Group><h5 className="border-bottom border-secondary pb-2 mb-3 text-coffee-accent">Precios y Stock</h5>{isCafe ? (<div>{['g250', 'g500', 'g1kg'].map((key) => (<Row key={key} className="align-items-center mb-2"><Col xs={3}><Form.Check type="switch" label={<span className="text-white fw-bold">{key.replace('g','')}</span>} checked={formatosStd[key].active} onChange={(e) => handleStdChange(key, 'active', e.target.checked)} /></Col><Col><InputGroup><InputGroup.Text>$</InputGroup.Text><Form.Control type="number" placeholder="Precio" value={formatosStd[key].precio} onChange={(e) => handleStdChange(key, 'precio', e.target.value)} disabled={!formatosStd[key].active} /></InputGroup></Col><Col><InputGroup><InputGroup.Text>Stock</InputGroup.Text><Form.Control type="number" value={formatosStd[key].stock} onChange={(e) => handleStdChange(key, 'stock', e.target.value)} disabled={!formatosStd[key].active} /></InputGroup></Col></Row>))}</div>) : isPrep ? (<Row><Col md={6}><InputGroup><InputGroup.Text>$</InputGroup.Text><Form.Control type="number" name="unico_precio" value={formData.unico_precio} onChange={handleChange} required placeholder="Precio Venta" /></InputGroup></Col><Col md={6} className="d-flex align-items-center text-white-50 mt-2"><span className="me-2 text-coffee-accent"><FaInfinity size={20}/></span> Stock ilimitado</Col></Row>) : (<Row><Col md={6}><InputGroup><InputGroup.Text>$</InputGroup.Text><Form.Control type="number" name="unico_precio" value={formData.unico_precio} onChange={handleChange} required placeholder="Precio" /></InputGroup></Col><Col md={6}><InputGroup><InputGroup.Text>Stock</InputGroup.Text><Form.Control type="number" name="unico_stock" value={formData.unico_stock} onChange={handleChange} required /></InputGroup></Col></Row>)}<Button className="btn-coffee-pill w-100 mt-4 btn-lg border-0 justify-content-center" type="submit" disabled={uploading}>{uploading ? 'Subiendo...' : (modoEdicion ? 'Guardar Cambios' : 'Crear Producto')}</Button><Button variant="outline-light" onClick={()=>setVista('lista')}>Cancelar</Button></Form></Card.Body></Card>
           )}
         </Tab>
 
-        {/* TAB VENTAS (ACTUALIZADO) */}
+        {/* TAB VENTAS */}
         <Tab eventKey="ventas" title="Ventas">
           <Card className="card-admin-dark border-0">
             <Card.Body className="p-4">
@@ -342,45 +397,24 @@ function Admin() {
                 <h5 className="mb-0 text-coffee-title" style={{ color: 'var(--coffee-accent)' }}>Solicitudes de Compra</h5>
               </div>
 
-              {/* FILTROS DE VENTAS */}
               <Nav variant="pills" className="mb-4 nav-pills-coffee">
                 <Nav.Item>
-                  <Nav.Link 
-                    eventKey="pendientes" 
-                    onClick={() => setFiltroVentas('pendientes')} 
-                    active={filtroVentas === 'pendientes'}
-                    className="d-flex align-items-center gap-2"
-                  >
+                  <Nav.Link eventKey="pendientes" onClick={() => setFiltroVentas('pendientes')} active={filtroVentas === 'pendientes'} className="d-flex align-items-center gap-2">
                     <FaClock /> Pendientes <Badge bg="danger" pill>{ventas.filter(v => v.estado === 'Por Confirmar').length}</Badge>
                   </Nav.Link>
                 </Nav.Item>
                 <Nav.Item>
-                  <Nav.Link 
-                    eventKey="aprobados" 
-                    onClick={() => setFiltroVentas('aprobados')} 
-                    active={filtroVentas === 'aprobados'}
-                    className="d-flex align-items-center gap-2"
-                  >
+                  <Nav.Link eventKey="aprobados" onClick={() => setFiltroVentas('aprobados')} active={filtroVentas === 'aprobados'} className="d-flex align-items-center gap-2">
                     <FaCheckCircle /> Aprobados
                   </Nav.Link>
                 </Nav.Item>
                 <Nav.Item>
-                  <Nav.Link 
-                    eventKey="rechazados" 
-                    onClick={() => setFiltroVentas('rechazados')} 
-                    active={filtroVentas === 'rechazados'}
-                    className="d-flex align-items-center gap-2"
-                  >
+                  <Nav.Link eventKey="rechazados" onClick={() => setFiltroVentas('rechazados')} active={filtroVentas === 'rechazados'} className="d-flex align-items-center gap-2">
                     <FaBan /> Rechazados
                   </Nav.Link>
                 </Nav.Item>
                 <Nav.Item>
-                  <Nav.Link 
-                    eventKey="todos" 
-                    onClick={() => setFiltroVentas('todos')} 
-                    active={filtroVentas === 'todos'}
-                    className="d-flex align-items-center gap-2"
-                  >
+                  <Nav.Link eventKey="todos" onClick={() => setFiltroVentas('todos')} active={filtroVentas === 'todos'} className="d-flex align-items-center gap-2">
                     <FaHistory /> Todos
                   </Nav.Link>
                 </Nav.Item>
@@ -417,7 +451,11 @@ function Admin() {
                         ) : <span className="text-muted small">No adjunto</span>}
                       </td>
                       <td>
-                        <Badge bg={v.estado === 'Completado' ? 'success' : v.estado === 'Rechazado' ? 'danger' : 'warning'} text="dark" className="px-3 py-2">
+                        <Badge bg={
+                          v.estado === 'Completado' ? 'success' : 
+                          v.estado === 'Rechazado' ? 'danger' : 
+                          'warning'
+                        } text="dark" className="px-3 py-2">
                           {v.estado === 'Por Confirmar' ? 'Pendiente' : v.estado}
                         </Badge>
                       </td>
@@ -440,7 +478,14 @@ function Admin() {
           </Card>
         </Tab>
 
-        <Tab eventKey="mensajes" title="Mensajes"><Card className="card-admin-dark border-0"><Card.Body><h5 className="text-coffee-title">Mensajes</h5><p className="text-center py-5 text-muted">No hay mensajes</p></Card.Body></Card></Tab>
+        <Tab eventKey="mensajes" title="Mensajes">
+          <Card className="card-admin-dark border-0">
+            <Card.Body>
+              <h5 className="text-coffee-title">Mensajes</h5>
+              <p className="text-center py-5 text-muted">No hay mensajes</p>
+            </Card.Body>
+          </Card>
+        </Tab>
       </Tabs>
 
       {/* MODAL CATEGORÍA */}
