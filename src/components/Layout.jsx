@@ -5,7 +5,8 @@ import { useCart } from '../context/CartContext';
 import { FaShoppingCart, FaUser } from 'react-icons/fa';
 
 function Layout() {
-  const { user, signOut } = useAuth();
+  // 1. AHORA DESESTRUCTURAMOS TAMBIÉN EL 'role'
+  const { user, signOut, role } = useAuth(); 
   const { cart } = useCart();
   
   const totalItems = cart.reduce((acc, item) => acc + item.cantidad, 0);
@@ -14,7 +15,6 @@ function Layout() {
     <div className="d-flex flex-column min-vh-100">
       <Navbar expand="lg" fixed="top" className="navbar-custom">
         <Container>
-          {/* Sin emoji, solo texto elegante */}
           <Navbar.Brand as={Link} to="/" className="d-flex align-items-center fw-bold">
             CAFÉ VALDIVIA
           </Navbar.Brand>
@@ -25,7 +25,6 @@ function Layout() {
             <Nav className="mx-auto align-items-center">
               <Nav.Link as={Link} to="/">Inicio</Nav.Link>
               <Nav.Link as={Link} to="/catalogo">Tienda</Nav.Link>
-              {/* Asumimos que crearás una página de contacto luego, por ahora apunta a # */}
               <Nav.Link as={Link} to="#">Contacto</Nav.Link>
             </Nav>
 
@@ -38,7 +37,12 @@ function Layout() {
                 >
                   <NavDropdown.Header className="small text-muted">{user.email?.split('@')[0]}</NavDropdown.Header>
                   <NavDropdown.Item as={Link} to="/mi-cuenta">Perfil y Pedidos</NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/admin">Panel Admin</NavDropdown.Item>
+                  
+                  {/* 2. CONDICIÓN: SOLO MOSTRAR SI EL ROL ES ADMIN */}
+                  {role === 'admin' && (
+                    <NavDropdown.Item as={Link} to="/admin">Panel Admin</NavDropdown.Item>
+                  )}
+
                   <NavDropdown.Divider />
                   <NavDropdown.Item onClick={signOut} className="text-danger">Cerrar Sesión</NavDropdown.Item>
                 </NavDropdown>
