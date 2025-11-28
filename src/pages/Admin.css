@@ -144,19 +144,17 @@
   background-color: var(--coffee-accent) !important; /* Se rellena de beige/café */
   color: #1a1a1a !important; /* Texto oscuro */
   
-  /* 🔥 ESTA LÍNEA EVITA EL AZUL: BORDE NEGRO AL PASAR EL MOUSE */
   border-color: #000000 !important; 
   box-shadow: 0 0 5px rgba(0,0,0,0.5);
 }
 
-/* Eliminar el borde azul del foco/clic también */
+
 .btn-action-pill:focus, 
 .btn-action-pill:active {
   box-shadow: none !important;
   border-color: #000000 !important;
 }
 
-/* Botón Eliminar (Rojo) */
 .btn-action-pill.delete {
   border-color: #ef5350 !important;
   color: #ef5350 !important;
