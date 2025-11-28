@@ -43,9 +43,14 @@ function Cart() {
                 <span className="fw-bold fs-5 text-success">${total.toLocaleString()}</span>
               </div>
               <p className="small text-muted mb-4">El costo de envío se calculará en el siguiente paso.</p>
-              <Button variant="dark" className="w-100 py-3 fw-bold" style={{backgroundColor: 'var(--coffee-dark)'}} disabled>
-                Ir a Pagar (Próximamente)
-              </Button>
+              
+              {/* BOTÓN ACTUALIZADO PARA IR AL CHECKOUT */}
+              <Link to="/checkout" className="text-decoration-none w-100 d-block">
+                <Button variant="dark" className="w-100 py-3 fw-bold" style={{backgroundColor: 'var(--coffee-dark)'}}>
+                  Ir a Pagar
+                </Button>
+              </Link>
+
             </Card.Body>
           </Card>
         </Col>

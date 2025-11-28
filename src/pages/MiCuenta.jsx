@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Card, Tab, Tabs, Table, Modal, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Card, Tab, Tabs, Table, Modal, Alert, Badge } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 function MiCuenta() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   
   // Estados
@@ -59,7 +59,7 @@ function MiCuenta() {
     e.preventDefault();
     const { error } = await supabase
       .from('perfiles')
-      .upsert({ id: user.id, ...perfil }); // Upsert crea o actualiza
+      .upsert({ id: user.id, ...perfil });
 
     if (error) setMsg({ type: 'danger', text: 'Error al guardar.' });
     else setMsg({ type: 'success', text: 'Información guardada correctamente.' });
@@ -69,7 +69,7 @@ function MiCuenta() {
   const abrirModalReseña = (detalle) => {
     setReseñaData({
       id_producto: detalle.id_producto,
-      nombre_producto: detalle.nombre_producto, // Asumiendo que guardaste el nombre en detalles_orden
+      nombre_producto: detalle.nombre_producto,
       calificacion: 5,
       comentario: ''
     });
@@ -105,26 +105,41 @@ function MiCuenta() {
           {ordenes.length === 0 ? <p>No tienes pedidos aún.</p> : (
             ordenes.map(orden => (
               <Card key={orden.id_orden} className="mb-3 shadow-sm border-0">
-                <Card.Header className="d-flex justify-content-between bg-white fw-bold">
+                <Card.Header className="d-flex justify-content-between bg-white fw-bold align-items-center">
                   <span>Pedido #{orden.id_orden.toString().slice(0,8)}...</span>
-                  <span>{new Date(orden.fecha).toLocaleDateString()}</span>
-                  <span className={orden.estado === 'Pagado' ? 'text-success' : 'text-warning'}>
-                    {orden.estado}
-                  </span>
+                  
+                  {/* ESTADO CON COLORES ACTUALIZADOS */}
+                  <div className="d-flex align-items-center gap-3">
+                    <span className="text-muted small fw-normal">{new Date(orden.fecha).toLocaleDateString()}</span>
+                    <Badge bg={
+                      orden.estado === 'Completado' ? 'success' : 
+                      orden.estado === 'Rechazado' ? 'danger' : 
+                      'warning'
+                    } text="dark" className="px-3">
+                      {orden.estado === 'Por Confirmar' ? 'Pendiente' : orden.estado}
+                    </Badge>
+                  </div>
                 </Card.Header>
                 <Card.Body>
-                  <Table size="sm" borderless>
+                  <Table size="sm" borderless responsive>
                     <tbody>
                       {orden.detalles_orden?.map((d, idx) => (
-                        <tr key={idx} className="border-bottom">
+                        <tr key={idx} className="border-bottom align-middle">
                           <td>{d.nombre_producto} <small className="text-muted">({d.formato_nombre})</small></td>
                           <td>x{d.cantidad}</td>
                           <td className="text-end">
+                            {/* BOTÓN OPINAR: Solo habilitado si está COMPLETADO */}
                             <Button 
                               variant="link" 
                               size="sm" 
                               className="text-decoration-none"
                               onClick={() => abrirModalReseña(d)}
+                              disabled={orden.estado !== 'Completado'}
+                              title={orden.estado !== 'Completado' ? 'Debes recibir el pedido para opinar' : 'Deja tu opinión'}
+                              style={{
+                                color: orden.estado === 'Completado' ? 'var(--coffee-dark)' : '#ccc',
+                                cursor: orden.estado === 'Completado' ? 'pointer' : 'not-allowed'
+                              }}
                             >
                               ★ Opinar
                             </Button>

@@ -11,19 +11,19 @@ import Home from './pages/Home';
 import Catalogo from './pages/Catalogo';
 import Cart from './pages/Cart';
 import Login from './pages/Login';
-import Registro from './pages/Registro'; // <--- NUEVA IMPORTACIÓN
+import Registro from './pages/Registro';
 import Admin from './pages/Admin';
 import ProductoDetalle from './pages/ProductoDetalle';
 import MiCuenta from './pages/MiCuenta';
+import Checkout from './pages/Checkout';
+import CompraExitosa from './pages/CompraExitosa'; // <--- IMPORTAR
 
 // --- COMPONENTE DE PROTECCIÓN DE RUTA ---
-// Verifica si el usuario tiene rol 'admin' antes de mostrar el contenido
 const AdminRoute = ({ children }) => {
   const { user, role, loading } = useAuth();
 
   if (loading) return <div className="text-center mt-5 py-5"><Spinner animation="border" variant="secondary"/></div>;
   
-  // Si no hay usuario O el rol no es admin, redirigir al Home
   if (!user || role !== 'admin') {
     return <Navigate to="/" replace />;
   }
@@ -45,7 +45,11 @@ function App() {
               
               {/* Rutas de Autenticación */}
               <Route path="/login" element={<Login />} />
-              <Route path="/registro" element={<Registro />} /> {/* <--- NUEVA RUTA */}
+              <Route path="/registro" element={<Registro />} />
+              
+              {/* Rutas de Compra */}
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/compra-exitosa" element={<CompraExitosa />} /> {/* <--- NUEVA RUTA */}
               
               {/* Rutas de Usuario */}
               <Route path="/mi-cuenta" element={<MiCuenta />} />
