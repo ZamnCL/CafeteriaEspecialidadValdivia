@@ -4,17 +4,17 @@ import { supabase } from '../supabase/cliente';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
+import "./MiCuenta.css";
+
 function MiCuenta() {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Estados
   const [perfil, setPerfil] = useState({ nombre: '', direccion: '', telefono: '' });
   const [ordenes, setOrdenes] = useState([]);
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(true);
 
-  // Estados para Reseña
   const [showModal, setShowModal] = useState(false);
   const [reseñaData, setReseñaData] = useState({ id_producto: null, nombre_producto: '', calificacion: 5, comentario: '' });
 
@@ -29,7 +29,6 @@ function MiCuenta() {
   const cargarDatos = async () => {
     setLoading(true);
     try {
-      // 1. Cargar Perfil (Datos de envío)
       const { data: dataPerfil } = await supabase
         .from('perfiles')
         .select('*')
@@ -38,7 +37,6 @@ function MiCuenta() {
       
       if (dataPerfil) setPerfil(dataPerfil);
 
-      // 2. Cargar Órdenes con Detalles
       const { data: dataOrdenes } = await supabase
         .from('ordenes')
         .select(`*, detalles_orden(*)`)
@@ -46,7 +44,6 @@ function MiCuenta() {
         .order('fecha', { ascending: false });
 
       setOrdenes(dataOrdenes || []);
-
     } catch (error) {
       console.error(error);
     } finally {
@@ -54,7 +51,6 @@ function MiCuenta() {
     }
   };
 
-  // --- GUARDAR PERFIL ---
   const handleGuardarPerfil = async (e) => {
     e.preventDefault();
     const { error } = await supabase
@@ -65,7 +61,6 @@ function MiCuenta() {
     else setMsg({ type: 'success', text: 'Información guardada correctamente.' });
   };
 
-  // --- RESEÑAS ---
   const abrirModalReseña = (detalle) => {
     setReseñaData({
       id_producto: detalle.id_producto,
@@ -94,51 +89,65 @@ function MiCuenta() {
   if (loading) return <Container className="mt-5 text-center">Cargando...</Container>;
 
   return (
-    <Container className="my-5">
-      <h2 className="mb-4">Mi Cuenta</h2>
+    <Container className="my-5 miCuenta-container">
+
+      <h2 className="miCuenta-title mb-4">Mi Cuenta</h2>
+
       {msg.text && <Alert variant={msg.type} dismissible onClose={()=>setMsg({})}>{msg.text}</Alert>}
 
-      <Tabs defaultActiveKey="pedidos" className="mb-4">
-        
-        {/* --- TAB 1: MIS PEDIDOS --- */}
+      <Tabs defaultActiveKey="pedidos" className="mb-4 miCuenta-tabs">
+
         <Tab eventKey="pedidos" title="Mis Pedidos">
-          {ordenes.length === 0 ? <p>No tienes pedidos aún.</p> : (
+          {ordenes.length === 0 ? (
+            <p className="text-muted">No tienes pedidos aún.</p>
+          ) : (
             ordenes.map(orden => (
-              <Card key={orden.id_orden} className="mb-3 shadow-sm border-0">
-                <Card.Header className="d-flex justify-content-between bg-white fw-bold align-items-center">
+              <Card key={orden.id_orden} className="mb-3 miCuenta-card border-0">
+                
+                <Card.Header className="d-flex justify-content-between miCuenta-card-header align-items-center">
                   <span>Pedido #{orden.id_orden.toString().slice(0,8)}...</span>
-                  
-                  {/* ESTADO CON COLORES ACTUALIZADOS */}
+
                   <div className="d-flex align-items-center gap-3">
-                    <span className="text-muted small fw-normal">{new Date(orden.fecha).toLocaleDateString()}</span>
-                    <Badge bg={
-                      orden.estado === 'Completado' ? 'success' : 
-                      orden.estado === 'Rechazado' ? 'danger' : 
-                      'warning'
-                    } text="dark" className="px-3">
+                    <span className="text-muted small fw-normal">
+                      {new Date(orden.fecha).toLocaleDateString()}
+                    </span>
+
+                    <Badge
+                      bg={
+                        orden.estado === 'Completado' ? 'success' : 
+                        orden.estado === 'Rechazado' ? 'danger' : 
+                        'warning'
+                      }
+                      text="dark"
+                      className="px-3"
+                    >
                       {orden.estado === 'Por Confirmar' ? 'Pendiente' : orden.estado}
                     </Badge>
                   </div>
                 </Card.Header>
+
                 <Card.Body>
-                  <Table size="sm" borderless responsive>
+                  <Table size="sm" responsive className="miCuenta-table">
                     <tbody>
                       {orden.detalles_orden?.map((d, idx) => (
-                        <tr key={idx} className="border-bottom align-middle">
-                          <td>{d.nombre_producto} <small className="text-muted">({d.formato_nombre})</small></td>
+                        <tr key={idx} className="align-middle">
+                          <td>
+                            <span className="miCuenta-product-title">{d.nombre_producto}</span>
+                            <br />
+                            <small className="miCuenta-product-category">{d.formato_nombre}</small>
+                          </td>
+
                           <td>x{d.cantidad}</td>
+
                           <td className="text-end">
-                            {/* BOTÓN OPINAR: Solo habilitado si está COMPLETADO */}
-                            <Button 
-                              variant="link" 
-                              size="sm" 
-                              className="text-decoration-none"
+                            <Button
+                              className="miCuenta-btn-opinar"
+                              size="sm"
                               onClick={() => abrirModalReseña(d)}
                               disabled={orden.estado !== 'Completado'}
-                              title={orden.estado !== 'Completado' ? 'Debes recibir el pedido para opinar' : 'Deja tu opinión'}
                               style={{
-                                color: orden.estado === 'Completado' ? 'var(--coffee-dark)' : '#ccc',
-                                cursor: orden.estado === 'Completado' ? 'pointer' : 'not-allowed'
+                                opacity: orden.estado !== 'Completado' ? 0.4 : 1,
+                                cursor: orden.estado !== 'Completado' ? 'not-allowed' : 'pointer'
                               }}
                             >
                               ★ Opinar
@@ -148,7 +157,8 @@ function MiCuenta() {
                       ))}
                     </tbody>
                   </Table>
-                  <div className="text-end fw-bold mt-2">
+
+                  <div className="text-end fw-bold mt-2 miCuenta-total">
                     Total: ${orden.total.toLocaleString()}
                   </div>
                 </Card.Body>
@@ -157,14 +167,13 @@ function MiCuenta() {
           )}
         </Tab>
 
-        {/* --- TAB 2: MIS DATOS --- */}
         <Tab eventKey="datos" title="Mis Datos de Envío">
-          <Card className="border-0 shadow-sm p-4">
+          <Card className="miCuenta-card p-4">
             <Form onSubmit={handleGuardarPerfil}>
               <Row>
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Nombre Completo</Form.Label>
+                    <Form.Label className="miCuenta-label">Nombre Completo</Form.Label>
                     <Form.Control 
                       type="text" 
                       value={perfil.nombre || ''} 
@@ -172,9 +181,10 @@ function MiCuenta() {
                     />
                   </Form.Group>
                 </Col>
+
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Teléfono</Form.Label>
+                    <Form.Label className="miCuenta-label">Teléfono</Form.Label>
                     <Form.Control 
                       type="text" 
                       value={perfil.telefono || ''} 
@@ -183,8 +193,9 @@ function MiCuenta() {
                   </Form.Group>
                 </Col>
               </Row>
+
               <Form.Group className="mb-3">
-                <Form.Label>Dirección de Envío</Form.Label>
+                <Form.Label className="miCuenta-label">Dirección de Envío</Form.Label>
                 <Form.Control 
                   type="text" 
                   value={perfil.direccion || ''} 
@@ -192,48 +203,60 @@ function MiCuenta() {
                   placeholder="Calle, Número, Comuna"
                 />
               </Form.Group>
-              <Button variant="dark" type="submit">Guardar Información</Button>
+
+              <Button className="miCuenta-btn-guardar mt-2" type="submit">
+                Guardar Información
+              </Button>
             </Form>
           </Card>
         </Tab>
       </Tabs>
 
-      {/* MODAL DE RESEÑA */}
-      <Modal show={showModal} onHide={() => setShowModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Opinar sobre {reseñaData.nombre_producto}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Calificación</Form.Label>
-              <div className="fs-3 text-warning cursor-pointer">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <span 
-                    key={star} 
-                    onClick={() => setReseñaData({...reseñaData, calificacion: star})}
-                    style={{cursor: 'pointer'}}
-                  >
-                    {star <= reseñaData.calificacion ? '★' : '☆'}
-                  </span>
-                ))}
-              </div>
-            </Form.Group>
-            <Form.Group>
-              <Form.Label>Tu comentario</Form.Label>
-              <Form.Control 
-                as="textarea" 
-                rows={3} 
-                value={reseñaData.comentario}
-                onChange={e => setReseñaData({...reseñaData, comentario: e.target.value})}
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>Cancelar</Button>
-          <Button variant="dark" onClick={enviarReseña}>Enviar Reseña</Button>
-        </Modal.Footer>
+      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+        <div className="miCuenta-card p-2" style={{ borderRadius: "12px" }}>
+          <Modal.Header closeButton className="miCuenta-card-header">
+            <Modal.Title className="miCuenta-title">
+              Opinar sobre {reseñaData.nombre_producto}
+            </Modal.Title>
+          </Modal.Header>
+
+          <Modal.Body>
+            <Form>
+              <Form.Group className="mb-3">
+                <Form.Label className="miCuenta-label">Calificación</Form.Label>
+                <div className="fs-3 miCuenta-stars">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span 
+                      key={star} 
+                      onClick={() => setReseñaData({...reseñaData, calificacion: star})}
+                    >
+                      {star <= reseñaData.calificacion ? '★' : '☆'}
+                    </span>
+                  ))}
+                </div>
+              </Form.Group>
+
+              <Form.Group>
+                <Form.Label className="miCuenta-label">Tu comentario</Form.Label>
+                <Form.Control 
+                  as="textarea" 
+                  rows={3} 
+                  value={reseñaData.comentario}
+                  onChange={e => setReseñaData({...reseñaData, comentario: e.target.value})}
+                />
+              </Form.Group>
+            </Form>
+          </Modal.Body>
+
+          <Modal.Footer className="d-flex justify-content-between">
+            <Button className="miCuenta-btn-cancelar" onClick={() => setShowModal(false)}>
+              Cancelar
+            </Button>
+            <Button className="miCuenta-btn-guardar" onClick={enviarReseña}>
+              Enviar Reseña
+            </Button>
+          </Modal.Footer>
+        </div>
       </Modal>
 
     </Container>
