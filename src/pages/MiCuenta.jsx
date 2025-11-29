@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Card, Tab, Tabs, Table, Modal, Alert, Badge } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Tab, Tabs, Table, Modal, Alert, Badge, Card } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -12,11 +12,19 @@ function MiCuenta() {
   
   const [perfil, setPerfil] = useState({ nombre: '', direccion: '', telefono: '' });
   const [ordenes, setOrdenes] = useState([]);
+  const [precios, setPrecios] = useState({});
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(true);
 
-  const [showModal, setShowModal] = useState(false);
-  const [reseñaData, setReseñaData] = useState({ id_producto: null, nombre_producto: '', calificacion: 5, comentario: '' });
+  const [detalleModal, setDetalleModal] = useState(null);
+
+  const [showResenaModal, setShowResenaModal] = useState(false);
+  const [reseñaData, setReseñaData] = useState({
+    id_producto: null,
+    nombre_producto: '',
+    calificacion: 5,
+    comentario: ''
+  });
 
   useEffect(() => {
     if (!user) {
@@ -44,6 +52,16 @@ function MiCuenta() {
         .order('fecha', { ascending: false });
 
       setOrdenes(dataOrdenes || []);
+
+      const { data: productos } = await supabase
+        .from('productos')
+        .select('id_producto, precio');
+
+      const mapaPrecios = {};
+      productos?.forEach(p => { mapaPrecios[p.id_producto] = p.precio });
+
+      setPrecios(mapaPrecios);
+
     } catch (error) {
       console.error(error);
     } finally {
@@ -51,7 +69,7 @@ function MiCuenta() {
     }
   };
 
-  const handleGuardarPerfil = async (e) => {
+  const manejarGuardarPerfil = async (e) => {
     e.preventDefault();
     const { error } = await supabase
       .from('perfiles')
@@ -68,7 +86,7 @@ function MiCuenta() {
       calificacion: 5,
       comentario: ''
     });
-    setShowModal(true);
+    setShowResenaModal(true);
   };
 
   const enviarReseña = async () => {
@@ -82,7 +100,7 @@ function MiCuenta() {
     if (error) alert("Error enviando reseña: " + error.message);
     else {
       alert("¡Gracias por tu opinión!");
-      setShowModal(false);
+      setShowResenaModal(false);
     }
   };
 
@@ -93,91 +111,121 @@ function MiCuenta() {
 
       <h2 className="miCuenta-title mb-4">Mi Cuenta</h2>
 
-      {msg.text && <Alert variant={msg.type} dismissible onClose={()=>setMsg({})}>{msg.text}</Alert>}
+      {msg.text && (
+        <Alert variant={msg.type} dismissible onClose={() => setMsg({})}>
+          {msg.text}
+        </Alert>
+      )}
 
       <Tabs defaultActiveKey="pedidos" className="mb-4 miCuenta-tabs">
 
         <Tab eventKey="pedidos" title="Mis Pedidos">
+
           {ordenes.length === 0 ? (
-            <p className="text-muted">No tienes pedidos aún.</p>
+            <Card className="miCuenta-card p-4 text-center">
+              <p className="text-muted mb-0">No tienes pedidos aún.</p>
+            </Card>
           ) : (
-            ordenes.map(orden => (
-              <Card key={orden.id_orden} className="mb-3 miCuenta-card border-0">
-                
-                <Card.Header className="d-flex justify-content-between miCuenta-card-header align-items-center">
-                  <span>Pedido #{orden.id_orden.toString().slice(0,8)}...</span>
+            <Card className="miCuenta-card mb-4">
+              <Card.Header className="miCuenta-card-header">
+                <h5 className="mb-0">Todos mis pedidos</h5>
+              </Card.Header>
 
-                  <div className="d-flex align-items-center gap-3">
-                    <span className="text-muted small fw-normal">
-                      {new Date(orden.fecha).toLocaleDateString()}
-                    </span>
+              <Card.Body>
+                <Table responsive size="sm" className="miCuenta-table">
+                  <thead>
+                    <tr>
+                      <th>Pedido</th>
+                      <th>Fecha</th>
+                      <th>Producto</th>
+                      <th>Cant.</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
 
-                    <Badge
-                      bg={
-                        orden.estado === 'Completado' ? 'success' : 
-                        orden.estado === 'Rechazado' ? 'danger' : 
-                        'warning'
-                      }
-                      text="dark"
-                      className="px-3"
-                    >
-                      {orden.estado === 'Por Confirmar' ? 'Pendiente' : orden.estado}
-                    </Badge>
-                  </div>
-                </Card.Header>
+                  <tbody>
+                    {ordenes.map(orden =>
+                      orden.detalles_orden.map((d, i) => (
+                        <tr key={`${orden.id_orden}-${i}`}>
 
-                <Card.Body>
-                  <Table size="sm" responsive className="miCuenta-table">
-                    <tbody>
-                      {orden.detalles_orden?.map((d, idx) => (
-                        <tr key={idx} className="align-middle">
+                          <td>#{orden.id_orden}</td>
+
+                          <td>
+                            <span className="miCuenta-fecha">
+                              {new Date(orden.fecha).toLocaleString()}
+                            </span>
+                          </td>
+
                           <td>
                             <span className="miCuenta-product-title">{d.nombre_producto}</span>
                             <br />
                             <small className="miCuenta-product-category">{d.formato_nombre}</small>
                           </td>
 
-                          <td>x{d.cantidad}</td>
+                          <td className="fw-bold">x{d.cantidad}</td>
+
+                          <td>
+                            <Badge
+                              bg={
+                                orden.estado === "Completado" ? "success" :
+                                orden.estado === "Rechazado" ? "danger" :
+                                "warning"
+                              }
+                              text="dark"
+                              className="px-3"
+                            >
+                              {orden.estado === "Por Confirmar" ? "Pendiente" : orden.estado}
+                            </Badge>
+                          </td>
 
                           <td className="text-end">
+
+                            <Button
+                              size="sm"
+                              className="miCuenta-btn-cancelar me-2"
+                              onClick={() => setDetalleModal(orden)}
+                            >
+                              Ver
+                            </Button>
+
                             <Button
                               className="miCuenta-btn-opinar"
                               size="sm"
                               onClick={() => abrirModalReseña(d)}
-                              disabled={orden.estado !== 'Completado'}
+                              disabled={orden.estado !== "Completado"}
                               style={{
-                                opacity: orden.estado !== 'Completado' ? 0.4 : 1,
-                                cursor: orden.estado !== 'Completado' ? 'not-allowed' : 'pointer'
+                                opacity: orden.estado !== "Completado" ? 0.4 : 1,
+                                cursor: orden.estado !== "Completado" ? "not-allowed" : "pointer",
                               }}
                             >
                               ★ Opinar
                             </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
 
-                  <div className="text-end fw-bold mt-2 miCuenta-total">
-                    Total: ${orden.total.toLocaleString()}
-                  </div>
-                </Card.Body>
-              </Card>
-            ))
+                          </td>
+
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </Table>
+              </Card.Body>
+            </Card>
           )}
         </Tab>
 
         <Tab eventKey="datos" title="Mis Datos de Envío">
           <Card className="miCuenta-card p-4">
-            <Form onSubmit={handleGuardarPerfil}>
+            <Form onSubmit={manejarGuardarPerfil}>
               <Row>
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label className="miCuenta-label">Nombre Completo</Form.Label>
                     <Form.Control 
-                      type="text" 
-                      value={perfil.nombre || ''} 
-                      onChange={e => setPerfil({...perfil, nombre: e.target.value})} 
+                      type="text"
+                      className="miCuenta-input"
+                      value={perfil.nombre || ''}
+                      onChange={e => setPerfil({ ...perfil, nombre: e.target.value })}
                     />
                   </Form.Group>
                 </Col>
@@ -186,9 +234,10 @@ function MiCuenta() {
                   <Form.Group className="mb-3">
                     <Form.Label className="miCuenta-label">Teléfono</Form.Label>
                     <Form.Control 
-                      type="text" 
-                      value={perfil.telefono || ''} 
-                      onChange={e => setPerfil({...perfil, telefono: e.target.value})} 
+                      type="text"
+                      className="miCuenta-input"
+                      value={perfil.telefono || ''}
+                      onChange={e => setPerfil({ ...perfil, telefono: e.target.value })}
                     />
                   </Form.Group>
                 </Col>
@@ -197,9 +246,10 @@ function MiCuenta() {
               <Form.Group className="mb-3">
                 <Form.Label className="miCuenta-label">Dirección de Envío</Form.Label>
                 <Form.Control 
-                  type="text" 
-                  value={perfil.direccion || ''} 
-                  onChange={e => setPerfil({...perfil, direccion: e.target.value})} 
+                  type="text"
+                  className="miCuenta-input"
+                  value={perfil.direccion || ''}
+                  onChange={e => setPerfil({ ...perfil, direccion: e.target.value })}
                   placeholder="Calle, Número, Comuna"
                 />
               </Form.Group>
@@ -212,8 +262,69 @@ function MiCuenta() {
         </Tab>
       </Tabs>
 
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
-        <div className="miCuenta-card p-2" style={{ borderRadius: "12px" }}>
+      {detalleModal && (
+        <Modal show onHide={() => setDetalleModal(null)} centered>
+          <div className="miCuenta-card p-3">
+            <Modal.Header closeButton className="miCuenta-card-header">
+              <Modal.Title className="miCuenta-title">
+                Detalle del Pedido #{detalleModal.id_orden}
+              </Modal.Title>
+            </Modal.Header>
+
+            <Modal.Body>
+              <p>
+                <strong>Fecha:</strong>{" "}
+                <span className="miCuenta-fecha">
+                  {new Date(detalleModal.fecha).toLocaleString()}
+                </span>
+              </p>
+
+              <Table size="sm" className="miCuenta-table">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Precio</th>
+                    <th>Cant.</th>
+                    <th>Subtotal</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {detalleModal.detalles_orden.map((d, i) => (
+                    <tr key={i}>
+                      <td>{d.nombre_producto}</td>
+                      <td>
+                        ${(
+                          precios[d.id_producto || d.producto_id] || 0
+                        ).toLocaleString()}
+                      </td>
+                      <td>{d.cantidad}</td>
+                      <td>
+                        ${(
+                          (precios[d.id_producto || d.producto_id] || 0) * d.cantidad
+                        ).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+
+              <div className="text-end fw-bold mt-3">
+                Total: ${detalleModal.total.toLocaleString()}
+              </div>
+            </Modal.Body>
+
+            <Modal.Footer>
+              <Button className="miCuenta-btn-cancelar" onClick={() => setDetalleModal(null)}>
+                Cerrar
+              </Button>
+            </Modal.Footer>
+          </div>
+        </Modal>
+      )}
+
+      <Modal show={showResenaModal} onHide={() => setShowResenaModal(false)} centered>
+        <div className="miCuenta-card p-2">
           <Modal.Header closeButton className="miCuenta-card-header">
             <Modal.Title className="miCuenta-title">
               Opinar sobre {reseñaData.nombre_producto}
@@ -227,8 +338,8 @@ function MiCuenta() {
                 <div className="fs-3 miCuenta-stars">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <span 
-                      key={star} 
-                      onClick={() => setReseñaData({...reseñaData, calificacion: star})}
+                      key={star}
+                      onClick={() => setReseñaData({ ...reseñaData, calificacion: star })}
                     >
                       {star <= reseñaData.calificacion ? '★' : '☆'}
                     </span>
@@ -239,17 +350,18 @@ function MiCuenta() {
               <Form.Group>
                 <Form.Label className="miCuenta-label">Tu comentario</Form.Label>
                 <Form.Control 
-                  as="textarea" 
-                  rows={3} 
+                  as="textarea"
+                  rows={3}
+                  className="miCuenta-input"
                   value={reseñaData.comentario}
-                  onChange={e => setReseñaData({...reseñaData, comentario: e.target.value})}
+                  onChange={e => setReseñaData({ ...reseñaData, comentario: e.target.value })}
                 />
               </Form.Group>
             </Form>
           </Modal.Body>
 
           <Modal.Footer className="d-flex justify-content-between">
-            <Button className="miCuenta-btn-cancelar" onClick={() => setShowModal(false)}>
+            <Button className="miCuenta-btn-cancelar" onClick={() => setShowResenaModal(false)}>
               Cancelar
             </Button>
             <Button className="miCuenta-btn-guardar" onClick={enviarReseña}>
