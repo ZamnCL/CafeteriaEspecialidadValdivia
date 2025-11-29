@@ -17,6 +17,7 @@ import MiCuenta from './pages/MiCuenta';
 import Checkout from './pages/Checkout';
 import CompraExitosa from './pages/CompraExitosa';
 import RectificarPago from './pages/RectificarPago';
+import Reserva from './pages/Reserva';
 
 // --- COMPONENTE DE PROTECCIÓN DE RUTA ---
 const AdminRoute = ({ children }) => {
@@ -40,6 +41,7 @@ function App() {
             <Route element={<Layout />}>
               <Route path="/" element={<Home />} />
               <Route path="/catalogo" element={<Catalogo />} />
+              <Route path="/reserva" element={<Reserva />} />
               <Route path="/carrito" element={<Cart />} />
               <Route path="/producto/:id" element={<ProductoDetalle />} />
               

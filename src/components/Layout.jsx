@@ -5,8 +5,7 @@ import { useCart } from '../context/CartContext';
 import { FaShoppingCart, FaUser } from 'react-icons/fa';
 
 function Layout() {
-  // 1. AHORA DESESTRUCTURAMOS TAMBIÉN EL 'role'
-  const { user, signOut, role } = useAuth(); 
+  const { user, signOut, role } = useAuth();
   const { cart } = useCart();
   
   const totalItems = cart.reduce((acc, item) => acc + item.cantidad, 0);
@@ -15,8 +14,9 @@ function Layout() {
     <div className="d-flex flex-column min-vh-100">
       <Navbar expand="lg" fixed="top" className="navbar-custom">
         <Container>
+          {/* NUEVO TÍTULO */}
           <Navbar.Brand as={Link} to="/" className="d-flex align-items-center fw-bold">
-            CAFÉ VALDIVIA
+            CAFETERÍA ESPECIALIDAD VALDIVIA
           </Navbar.Brand>
           
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
@@ -25,6 +25,7 @@ function Layout() {
             <Nav className="mx-auto align-items-center">
               <Nav.Link as={Link} to="/">Inicio</Nav.Link>
               <Nav.Link as={Link} to="/catalogo">Tienda</Nav.Link>
+              <Nav.Link as={Link} to="/reserva">Reserva</Nav.Link>
               <Nav.Link as={Link} to="/contacto">Contacto</Nav.Link>
             </Nav>
 
@@ -38,7 +39,6 @@ function Layout() {
                   <NavDropdown.Header className="small text-muted">{user.email?.split('@')[0]}</NavDropdown.Header>
                   <NavDropdown.Item as={Link} to="/mi-cuenta">Perfil y Pedidos</NavDropdown.Item>
                   
-                  {/* 2. CONDICIÓN: SOLO MOSTRAR SI EL ROL ES ADMIN */}
                   {role === 'admin' && (
                     <NavDropdown.Item as={Link} to="/admin">Panel Admin</NavDropdown.Item>
                   )}
@@ -73,13 +73,15 @@ function Layout() {
         <Container>
           <div className="row gy-4">
             <div className="col-md-4 footer-section">
-              <h4>Café Valdivia</h4>
+              {/* NUEVO TÍTULO EN FOOTER */}
+              <h4>Cafetería Especialidad Valdivia</h4>
               <p className="text-white-50 small">Tostaduría de especialidad en el corazón del sur de Chile.</p>
             </div>
             <div className="col-md-4 footer-section">
               <h4>Navegación</h4>
               <Link to="/">Inicio</Link>
-              <Link to="/carrito">Carrito</Link>
+              <Link to="/catalogo">Tienda</Link>
+              <Link to="/reserva">Reserva</Link>
             </div>
             <div className="col-md-4 footer-section">
               <h4>Contacto</h4>
@@ -88,7 +90,8 @@ function Layout() {
             </div>
           </div>
           <div className="text-center mt-5 pt-3 border-top border-secondary">
-            <small className="text-white-50">© {new Date().getFullYear()} Café Valdivia.</small>
+            {/* NUEVO COPYRIGHT */}
+            <small className="text-white-50">© {new Date().getFullYear()} Cafetería Especialidad Valdivia.</small>
           </div>
         </Container>
       </footer>
