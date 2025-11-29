@@ -4,8 +4,7 @@ import { CartProvider } from './context/CartContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import { Spinner } from 'react-bootstrap';
-
-// Componentes
+import Contacto from './pages/Contacto';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Catalogo from './pages/Catalogo';
@@ -16,7 +15,9 @@ import Admin from './pages/Admin';
 import ProductoDetalle from './pages/ProductoDetalle';
 import MiCuenta from './pages/MiCuenta';
 import Checkout from './pages/Checkout';
-import CompraExitosa from './pages/CompraExitosa'; // <--- IMPORTAR
+import CompraExitosa from './pages/CompraExitosa';
+import RectificarPago from './pages/RectificarPago';
+import Reserva from './pages/Reserva';
 
 // --- COMPONENTE DE PROTECCIÓN DE RUTA ---
 const AdminRoute = ({ children }) => {
@@ -40,6 +41,7 @@ function App() {
             <Route element={<Layout />}>
               <Route path="/" element={<Home />} />
               <Route path="/catalogo" element={<Catalogo />} />
+              <Route path="/reserva" element={<Reserva />} />
               <Route path="/carrito" element={<Cart />} />
               <Route path="/producto/:id" element={<ProductoDetalle />} />
               
@@ -49,12 +51,11 @@ function App() {
               
               {/* Rutas de Compra */}
               <Route path="/checkout" element={<Checkout />} />
-              <Route path="/compra-exitosa" element={<CompraExitosa />} /> {/* <--- NUEVA RUTA */}
-              
-              {/* Rutas de Usuario */}
+              <Route path="/compra-exitosa" element={<CompraExitosa />} />
+              <Route path="/contacto" element={<Contacto />} />
               <Route path="/mi-cuenta" element={<MiCuenta />} />
+              <Route path="/rectificar-pago/:idOrden" element={<RectificarPago />} />
               
-              {/* Ruta Protegida de Admin */}
               <Route 
                 path="/admin" 
                 element={

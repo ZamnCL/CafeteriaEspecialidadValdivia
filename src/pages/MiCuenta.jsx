@@ -26,6 +26,9 @@ function MiCuenta() {
     comentario: ''
   });
 
+  // NUEVO ESTADO para búsqueda
+  const [busqueda, setBusqueda] = useState('');
+
   useEffect(() => {
     if (!user) {
       navigate('/login');
@@ -132,6 +135,16 @@ function MiCuenta() {
               </Card.Header>
 
               <Card.Body>
+                {/* BARRA DE BÚSQUEDA */}
+                <Form className="mb-3">
+                  <Form.Control
+                    type="text"
+                    placeholder="Buscar producto..."
+                    value={busqueda}
+                    onChange={e => setBusqueda(e.target.value)}
+                  />
+                </Form>
+
                 <Table responsive size="sm" className="miCuenta-table">
                   <thead>
                     <tr>
@@ -145,68 +158,81 @@ function MiCuenta() {
                   </thead>
 
                   <tbody>
-                    {ordenes.map(orden =>
-                      orden.detalles_orden.map((d, i) => (
-                        <tr key={`${orden.id_orden}-${i}`}>
+                    {ordenes.map((orden) => {
+                      const productosFiltrados = orden.detalles_orden.filter(d =>
+                        d.nombre_producto.toLowerCase().includes(busqueda.toLowerCase())
+                      );
 
-                          <td>#{orden.id_orden}</td>
+                      if (productosFiltrados.length === 0) return null;
 
-                          <td>
-                            <span className="miCuenta-fecha">
-                              {new Date(orden.fecha).toLocaleString()}
-                            </span>
-                          </td>
+                      // Calcular total del pedido
+                      const totalPedido = productosFiltrados.reduce((acc, d) => {
+                        const precio = precios[d.id_producto || d.producto_id] || 0;
+                        return acc + precio * d.cantidad;
+                      }, 0);
 
-                          <td>
-                            <span className="miCuenta-product-title">{d.nombre_producto}</span>
-                            <br />
-                            <small className="miCuenta-product-category">{d.formato_nombre}</small>
-                          </td>
+                      return (
+                        <>
+                          {productosFiltrados.map((d, i) => (
+                            <tr key={`${orden.id_orden}-${i}`}>
+                              <td>#{orden.id_orden}</td>
+                              <td>
+                                <span className="miCuenta-fecha">
+                                  {new Date(orden.fecha).toLocaleString()}
+                                </span>
+                              </td>
+                              <td>
+                                <span className="miCuenta-product-title">{d.nombre_producto}</span>
+                                <br />
+                                <small className="miCuenta-product-category">{d.formato_nombre}</small>
+                              </td>
+                              <td className="fw-bold">x{d.cantidad}</td>
+                              <td>
+                                <Badge
+                                  bg={
+                                    orden.estado === "Completado" ? "success" :
+                                    orden.estado === "Rechazado" ? "danger" :
+                                    "warning"
+                                  }
+                                  text="dark"
+                                  className="px-3"
+                                >
+                                  {orden.estado === "Por Confirmar" ? "Pendiente" : orden.estado}
+                                </Badge>
+                              </td>
+                              <td className="text-end">
+                                <Button
+                                  size="sm"
+                                  className="miCuenta-btn-cancelar me-2"
+                                  onClick={() => setDetalleModal(orden)}
+                                >
+                                  Ver
+                                </Button>
 
-                          <td className="fw-bold">x{d.cantidad}</td>
+                                <Button
+                                  className="miCuenta-btn-opinar"
+                                  size="sm"
+                                  onClick={() => abrirModalReseña(d)}
+                                  disabled={orden.estado !== "Completado"}
+                                  style={{
+                                    opacity: orden.estado !== "Completado" ? 0.4 : 1,
+                                    cursor: orden.estado !== "Completado" ? "not-allowed" : "pointer",
+                                  }}
+                                >
+                                  ★ Opinar
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
 
-                          <td>
-                            <Badge
-                              bg={
-                                orden.estado === "Completado" ? "success" :
-                                orden.estado === "Rechazado" ? "danger" :
-                                "warning"
-                              }
-                              text="dark"
-                              className="px-3"
-                            >
-                              {orden.estado === "Por Confirmar" ? "Pendiente" : orden.estado}
-                            </Badge>
-                          </td>
-
-                          <td className="text-end">
-
-                            <Button
-                              size="sm"
-                              className="miCuenta-btn-cancelar me-2"
-                              onClick={() => setDetalleModal(orden)}
-                            >
-                              Ver
-                            </Button>
-
-                            <Button
-                              className="miCuenta-btn-opinar"
-                              size="sm"
-                              onClick={() => abrirModalReseña(d)}
-                              disabled={orden.estado !== "Completado"}
-                              style={{
-                                opacity: orden.estado !== "Completado" ? 0.4 : 1,
-                                cursor: orden.estado !== "Completado" ? "not-allowed" : "pointer",
-                              }}
-                            >
-                              ★ Opinar
-                            </Button>
-
-                          </td>
-
-                        </tr>
-                      ))
-                    )}
+                          {/* FILA DEL TOTAL DEL PEDIDO */}
+                          <tr className="fw-bold">
+                            <td colSpan={5} className="text-end">Total Pedido:</td>
+                            <td className="text-end">${totalPedido.toLocaleString()}</td>
+                          </tr>
+                        </>
+                      );
+                    })}
                   </tbody>
                 </Table>
               </Card.Body>

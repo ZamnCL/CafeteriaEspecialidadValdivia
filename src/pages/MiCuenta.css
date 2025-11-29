@@ -188,3 +188,24 @@
   cursor: not-allowed !important;
   color: #1B1B1B !important;
 }
+
+.miCuenta-container form input[type="text"] {
+  background: #2A2A2A;
+  border: 1px solid var(--fondo-tab-activo);
+  border-radius: 12px;
+  padding: 10px 15px;
+  color: var(--texto-blanco);
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.miCuenta-container form input[type="text"]::placeholder {
+  color: #8C7B67;
+  font-style: italic;
+}
+
+.miCuenta-container form input[type="text"]:focus {
+  outline: none;
+  border-color: var(--beige);
+  box-shadow: 0 0 8px rgba(201, 169, 126, 0.5);
+}

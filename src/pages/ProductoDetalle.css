@@ -1,0 +1,161 @@
+/* --- src/pages/ProductoDetalle.css --- */
+
+/* Contenedor de la imagen */
+.product-detail-img-container {
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(92, 61, 46, 0.1);
+  background-color: #fff;
+  padding: 1rem;
+}
+
+/* Títulos y Precios */
+.detail-title {
+  color: var(--coffee-dark);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.detail-price {
+  color: var(--coffee-accent);
+  font-weight: 700;
+  font-size: 2rem;
+}
+
+/* Botones de Acción Principales */
+.btn-add-cart {
+  background-color: var(--coffee-dark);
+  border: 2px solid var(--coffee-dark);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.btn-add-cart:hover:not(:disabled) {
+  background-color: #3e2b22;
+  border-color: #3e2b22;
+  transform: translateY(-2px);
+}
+
+.btn-buy-now {
+  background-color: transparent;
+  border: 2px solid var(--coffee-dark);
+  color: var(--coffee-dark);
+  transition: all 0.3s ease;
+}
+
+.btn-buy-now:hover:not(:disabled) {
+  background-color: var(--coffee-dark);
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* --- SELECTOR DE CANTIDAD CUADRADO --- */
+.quantity-selector {
+    border: 2px solid #e9ecef;
+    border-radius: 8px !important;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    width: fit-content;
+    background-color: #fff;
+}
+
+.btn-quantity {
+    width: 38px;
+    height: 38px;
+    border-radius: 6px !important;
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
+    color: var(--coffee-dark);
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    cursor: pointer;
+    padding: 0;
+}
+
+.btn-quantity:hover:not(:disabled) {
+    border-color: var(--coffee-accent);
+    background-color: var(--coffee-accent);
+    color: #fff;
+}
+
+.btn-quantity:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Input numérico limpio */
+.quantity-input {
+    border: none;
+    text-align: center;
+    width: 50px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: var(--coffee-dark);
+    background: transparent;
+    outline: none;
+    
+    /* --- SOLUCIÓN A LA BARRITA AMARILLA --- */
+    appearance: textfield; /* Propiedad estándar primero */
+    -moz-appearance: textfield; /* Propiedad Firefox después */
+}
+
+/* Ocultar flechas en Chrome, Safari, Edge, Opera */
+.quantity-input::-webkit-outer-spin-button,
+.quantity-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Acordeón Personalizado */
+.custom-accordion .accordion-item {
+  border: none;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  background: transparent;
+}
+
+.custom-accordion .accordion-button {
+  background: transparent;
+  color: var(--coffee-dark);
+  font-weight: 600;
+  box-shadow: none;
+  padding-left: 0;
+}
+
+.custom-accordion .accordion-button:not(.collapsed) {
+  color: var(--coffee-accent);
+  background: transparent;
+}
+
+.custom-accordion .accordion-body {
+  padding-left: 0;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* Notificación Flotante (Arriba a la derecha) */
+.aesthetic-toast {
+  position: fixed;
+  top: 90px;
+  right: 20px;
+  background: rgba(26, 26, 26, 0.95);
+  color: white;
+  padding: 15px 25px;
+  border-radius: 12px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  z-index: 1050;
+  opacity: 0;
+  transform: translateX(120%);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.aesthetic-toast.show {
+  transform: translateX(0);
+  opacity: 1;
+}
