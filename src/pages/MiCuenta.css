@@ -1,187 +1,211 @@
-
 :root {
-  --coffee-bg-dark: #1a1a1a;
-  --coffee-card-bg: #2c2c2c;
-  --coffee-text-light: #f5f1ec;
-  --coffee-accent: #c4a484;
-  --coffee-dark: #5c3d2e;
+  --fondo-oscuro: #1F1F1F;
+  --fondo-oscuro2: #202020;
+  --fondo-card: #1B1B1B;
+  --fondo-tab-activo: #3A2E26;
+  --fondo-tab-inactivo: #E8DCC2; 
+  --beige: #C9A97E;
+  --beige-claro: #E8DCC2;
+  --beige-muy-claro: #F1E7D0;
+  --borde-oscuro: #2A2A2A;
+  --texto-blanco: #E8DCC2;
+  --texto-destacado: #F1E7D0;
+  --texto-dim: #B6A892;
+  --dato-fecha: #D6C7A8;
 }
 
 .miCuenta-container {
-  color: var(--coffee-text-light);
-  padding: 40px 0;
+  color: var(--texto-blanco);
 }
 
 .miCuenta-title {
-  color: var(--coffee-dark);
-  font-size: 34px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 20px;
-}
-
-.miCuenta-tabs {
-  border-bottom: none !important;
-  margin-bottom: 1rem !important;
-  gap: 0.5rem;
+  font-weight: 700;
+  color: var(--fondo-tab-activo);
 }
 
 .miCuenta-tabs .nav-link {
-  color: var(--coffee-dark) !important;
-  border: 2px solid var(--coffee-dark) !important;
-  border-radius: 50px !important;
-  padding: 8px 24px !important;
-  font-weight: 700;
-  background: transparent !important;
-  transition: all 0.3s ease;
-}
-
-.miCuenta-tabs .nav-link:hover {
-  background-color: rgba(92, 61, 46, 0.1) !important;
-  color: var(--coffee-dark) !important;
+  background: var(--fondo-tab-inactivo) !important;
+  color: #1B1B1B !important;
+  border-radius: 12px;
+  padding: 10px 22px;
+  font-weight: 600;
+  border: 1px solid var(--fondo-tab-activo) !important;
 }
 
 .miCuenta-tabs .nav-link.active {
-  background-color: var(--coffee-dark) !important;
-  color: var(--coffee-text-light) !important;
-  border-color: var(--coffee-dark) !important;
-  box-shadow: 0 4px 10px rgba(92, 61, 46, 0.3);
+  background: var(--fondo-tab-activo) !important;
+  color: var(--beige-muy-claro) !important;
+  border: 1px solid var(--fondo-tab-activo) !important;
 }
 
-
 .miCuenta-card {
-  background: linear-gradient(180deg, #2c2c2c 0%, #252525 100%);
-  border: 1px solid rgba(196, 164, 132, 0.1);
-  color: var(--coffee-text-light);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-  border-radius: 12px !important;
+  background: var(--fondo-card);
+  border-radius: 20px;
+  padding: 20px;
+  border: 1px solid var(--borde-oscuro);
+  color: var(--texto-blanco);
+  box-shadow: 0px 3px 8px rgba(0,0,0,0.3);
 }
 
 .miCuenta-card-header {
-  background-color: rgba(0,0,0,0.2) !important;
-  border-bottom: 1px solid rgba(196, 164, 132, 0.2) !important;
-  border-radius: 12px 12px 0 0 !important;
-  padding: 15px 20px !important;
-  color: var(--coffee-accent) !important;
-  font-weight: 700 !important;
+  background: transparent !important;
+  border-bottom: 1px solid #2E2E2E !important;
+  padding: 18px;
 }
 
-
-.miCuenta-table {
-  --bs-table-bg: transparent;
-  --bs-table-color: var(--coffee-text-light);
-  --bs-table-hover-color: var(--coffee-text-light);
-  --bs-table-hover-bg: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
+.miCuenta-fecha {
+  color: var(--dato-fecha);
 }
 
-.miCuenta-table thead th {
-  background-color: rgba(0,0,0,0.3);
-  color: #999;
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  padding: 1rem;
-}
-
-.miCuenta-table tbody tr {
-  border-bottom: 1px solid rgba(196, 164, 132, 0.15) !important;
-  transition: 0.3s ease;
-}
-
-.miCuenta-table tbody tr:hover {
-  background-color: rgba(196, 164, 132, 0.08) !important;
-  transform: translateY(-2px);
-}
-
-.miCuenta-table td {
-  padding-top: 1.5rem !important;
-  padding-bottom: 1.5rem !important;
-  vertical-align: middle !important;
+.miCuenta-product-item {
+  background: var(--fondo-oscuro2) !important;
+  border: 1px solid var(--borde-oscuro);
+  border-radius: 10px;
+  padding: 15px;
+  color: var(--texto-blanco);
 }
 
 .miCuenta-product-title {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: var(--coffee-text-light);
-  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: var(--texto-destacado);
 }
 
 .miCuenta-product-category {
-  font-size: 0.85rem;
-  color: var(--coffee-accent);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  opacity: 0.8;
+  color: var(--texto-dim);
+  font-size: 0.75rem;
+}
+
+.miCuenta-precio-unit {
+  color: var(--beige);
+}
+
+.miCuenta-table,
+.miCuenta-table tbody,
+.miCuenta-table tr,
+.miCuenta-table td {
+  background: var(--fondo-oscuro2) !important;
+  color: var(--texto-blanco) !important;
+  border: none !important;
+}
+
+.miCuenta-table tbody tr {
+  border-bottom: 1px solid #333;
+}
+
+.miCuenta-table td {
+  padding: 12px 8px;
+}
+
+.miCuenta-table thead,
+.miCuenta-table thead tr,
+.miCuenta-table thead th {
+  background: var(--fondo-oscuro2) !important;
+  color: var(--beige-claro) !important;
+  border-bottom: 1px solid var(--borde-oscuro) !important;
+}
+
+.miCuenta-total {
+  color: var(--beige-claro);
+  font-size: 1rem;
   font-weight: 600;
 }
 
 .miCuenta-label {
-  color: var(--coffee-accent) !important;
+  color: var(--texto-dim);
   font-weight: 600;
-  font-size: 0.95rem;
 }
 
 .miCuenta-input {
-  background: #222 !important;
-  border: 1px solid rgba(196,164,132,0.2) !important;
-  color: var(--coffee-text-light) !important;
-  border-radius: 10px !important;
+  background: #2A2A2A;
+  border: 1px solid var(--fondo-tab-activo);
+  border-radius: 10px;
+  color: var(--texto-blanco);
 }
 
-.miCuenta-input:focus {
-  border-color: var(--coffee-accent) !important;
-  box-shadow: 0 0 5px rgba(196,164,132,0.4) !important;
+.miCuenta-input::placeholder {
+  color: #8C7B67;
 }
 
 .miCuenta-btn-guardar {
-  background-color: var(--coffee-accent) !important;
-  color: #1a1a1a !important;
-  border: none !important;
-  border-radius: 50px !important;
-  padding: 8px 24px !important;
-  font-weight: 700 !important;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-}
-
-.miCuenta-btn-guardar:hover {
-  background-color: #a08468 !important;
-}
-
-.miCuenta-btn-cancelar {
-  background: transparent !important;
-  color: var(--coffee-accent) !important;
-  border: 1px solid var(--coffee-accent) !important;
-  border-radius: 50px !important;
-  padding: 6px 20px !important;
+  background: var(--fondo-tab-activo);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+  color: var(--beige-muy-claro);
   font-weight: 600;
 }
 
-.miCuenta-btn-cancelar:hover {
-  background-color: var(--coffee-accent) !important;
-  color: #1a1a1a !important;
+.miCuenta-btn-cancelar {
+  background: #6A4E42;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+  color: var(--beige-muy-claro);
+  font-weight: 600;
 }
 
 .miCuenta-btn-opinar {
-  background: transparent !important;
-  color: var(--coffee-accent) !important;
-  border: 1px solid var(--coffee-accent) !important;
-  border-radius: 50px !important;
-  padding: 6px 18px !important;
+  background: var(--beige);
+  border: none;
+  color: #1B1B1B;
+  border-radius: 8px;
   font-weight: 700;
+  padding: 5px 12px;
 }
 
-.miCuenta-btn-opinar:hover {
-  background-color: var(--coffee-accent) !important;
-  color: #1a1a1a !important;
+.modal-content {
+  background: var(--fondo-card) !important;
+  border-radius: 20px !important;
+  border: 1px solid var(--borde-oscuro) !important;
 }
 
-/* ESTRELLAS */
+.modal-header,
+.modal-footer {
+  border-color: #333 !important;
+}
+
 .miCuenta-stars span {
   cursor: pointer;
-  font-size: 28px;
-  color: var(--coffee-accent);
+  font-size: 2rem;
+  color: #C6A47C;
+}
+
+.modal-content,
+.modal-content * {
+  color: var(--beige-claro) !important;
+}
+
+.miCuenta-btn-opinar {
+  background: var(--beige) !important;
+  color: #1B1B1B !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.miCuenta-btn-opinar:disabled {
+  background: var(--beige) !important;
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+  color: #1B1B1B !important;
+}
+
+.miCuenta-container form input[type="text"] {
+  background: #2A2A2A;
+  border: 1px solid var(--fondo-tab-activo);
+  border-radius: 12px;
+  padding: 10px 15px;
+  color: var(--texto-blanco);
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.miCuenta-container form input[type="text"]::placeholder {
+  color: #8C7B67;
+  font-style: italic;
+}
+
+.miCuenta-container form input[type="text"]:focus {
+  outline: none;
+  border-color: var(--beige);
+  box-shadow: 0 0 8px rgba(201, 169, 126, 0.5);
 }
