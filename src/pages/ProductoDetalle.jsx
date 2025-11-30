@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Container, Row, Col, Image, Form, Button, Badge, Spinner, Accordion } from 'react-bootstrap';
+import { Container, Row, Col, Image, Form, Button, Badge, Spinner, Accordion, Alert } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
 import { useCart } from '../context/CartContext';
-import { FaCheckCircle, FaShoppingCart, FaCreditCard, FaArrowLeft } from 'react-icons/fa';
+import { FaCheckCircle, FaShoppingCart, FaCreditCard, FaArrowLeft, FaClock } from 'react-icons/fa';
 import './ProductoDetalle.css';
+
+// IMPORTAMOS EL COMPONENTE DE RESEÑAS
+import ResenasProducto from '../components/ResenasProducto';
 
 function ProductoDetalle() {
   const { id } = useParams();
@@ -16,6 +19,11 @@ function ProductoDetalle() {
   const [selectedFormatoId, setSelectedFormatoId] = useState('');
   const [cantidad, setCantidad] = useState(1);
   const [showToast, setShowToast] = useState(false);
+
+  // --- ESTADOS PARA RESERVA ---
+  const [fechaRetiro, setFechaRetiro] = useState('');
+  const [horaRetiro, setHoraRetiro] = useState('');
+  const [errorReserva, setErrorReserva] = useState('');
 
   useEffect(() => {
     const fetchProducto = async () => {
@@ -34,6 +42,7 @@ function ProductoDetalle() {
           const ordenados = data.formatos.sort((a, b) => a.precio - b.precio);
           setSelectedFormatoId(ordenados[0].id_formato);
         }
+        setFechaRetiro(new Date().toISOString().split('T')[0]);
       } catch (err) { console.error(err); } finally { setLoading(false); }
     };
     fetchProducto();
@@ -54,17 +63,51 @@ function ProductoDetalle() {
   const handleIncrementar = () => { if (cantidad < stockActual) setCantidad(c => c + 1); };
   const handleDecrementar = () => { setCantidad(c => Math.max(1, c - 1)); };
 
+  const esPreparacion = () => {
+    const cat = producto?.categoria?.nombre?.toLowerCase() || '';
+    return cat.includes('preparación') || cat.includes('bebida') || cat.includes('barra') || 
+           cat.includes('pastelería') || cat.includes('sandwich') || cat.includes('métodos') || 
+           cat.includes('cafeteras') || cat.includes('servicio') || cat.includes('filtrado');
+  };
+
+  const validarReserva = () => {
+    if (!esPreparacion()) return true; 
+    if (!fechaRetiro || !horaRetiro) { setErrorReserva('Selecciona fecha y hora de retiro.'); return false; }
+
+    const fechaHoraUser = new Date(`${fechaRetiro}T${horaRetiro}`);
+    const ahora = new Date();
+    const diaSemana = fechaHoraUser.getDay();
+    const hora = fechaHoraUser.getHours();
+    const minutos = fechaHoraUser.getMinutes();
+
+    if (fechaHoraUser < ahora) { setErrorReserva('La hora seleccionada ya pasó.'); return false; }
+    if (diaSemana === 0) { setErrorReserva('Domingos cerrado.'); return false; }
+    
+    const minutosTotales = hora * 60 + minutos;
+    if (minutosTotales < 510 || minutosTotales > 1200) { setErrorReserva('Horario: 08:30 a 20:00 hrs.'); return false; }
+
+    setErrorReserva('');
+    return true;
+  };
+
   const handleAgregar = () => {
     if (!formatoActual || cantidad > stockActual || stockActual === 0) return;
-    addToCart(producto, formatoActual, cantidad);
+    if (!validarReserva()) return;
+
+    const reservaData = esPreparacion() ? { date: fechaRetiro, time: horaRetiro } : null;
+    addToCart(producto, formatoActual.id_formato, formatoActual.nombre, formatoActual.precio, cantidad, reservaData);
+    
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
 
   const handleComprarAhora = () => {
     if (!formatoActual || cantidad > stockActual || stockActual === 0) return;
+    if (!validarReserva()) return;
+
     clearCart(); 
-    addToCart(producto, formatoActual, cantidad);
+    const reservaData = esPreparacion() ? { date: fechaRetiro, time: horaRetiro } : null;
+    addToCart(producto, formatoActual.id_formato, formatoActual.nombre, formatoActual.precio, cantidad, reservaData);
     navigate('/checkout');
   };
 
@@ -85,7 +128,6 @@ function ProductoDetalle() {
         <Col lg={6}>
           <div className="ps-lg-4">
             <Badge bg="dark" text="white" className="mb-3 px-3 py-2 rounded-pill text-uppercase tracking-wider">{producto.categoria?.nombre}</Badge>
-            
             <h1 className="display-5 detail-title mb-2">{producto.nombre}</h1>
             <div className="detail-price mb-4">${formatoActual?.precio?.toLocaleString() || '---'}</div>
 
@@ -100,25 +142,32 @@ function ProductoDetalle() {
               </Form.Group>
             )}
 
-            {/* SELECTOR DE CANTIDAD CUADRADO */}
+            {esPreparacion() && (
+              <div className="p-3 mb-4 rounded border border-warning bg-light animate-fade-in">
+                <h6 className="fw-bold text-coffee mb-3 d-flex align-items-center">
+                  <FaClock className="me-2"/> Programa tu retiro
+                </h6>
+                <Row className="g-2">
+                  <Col xs={6}><Form.Control type="date" value={fechaRetiro} onChange={(e) => setFechaRetiro(e.target.value)} min={new Date().toISOString().split('T')[0]} /></Col>
+                  <Col xs={6}><Form.Control type="time" value={horaRetiro} onChange={(e) => setHoraRetiro(e.target.value)} /></Col>
+                </Row>
+                {errorReserva && <Alert variant="danger" className="mt-2 py-2 small mb-0">{errorReserva}</Alert>}
+                <div className="small text-muted mt-2 fst-italic">* Horario Lun-Sáb de 08:30 a 20:00 hrs.</div>
+              </div>
+            )}
+
             <div className="d-flex align-items-center gap-3 mb-4">
               <div className="quantity-selector">
-                <button className="btn-quantity" onClick={handleDecrementar} disabled={stockActual === 0}>-</button>
+                <button className="btn-quantity" onClick={handleDecrementar}>-</button>
                 <input type="number" className="quantity-input" value={cantidad} onChange={handleCantidadChange} min="1" max={stockActual} disabled={stockActual === 0} />
-                <button className="btn-quantity" onClick={handleIncrementar} disabled={stockActual === 0 || cantidad >= stockActual}>+</button>
+                <button className="btn-quantity" onClick={handleIncrementar}>+</button>
               </div>
-              <span className={`small fw-bold ${stockActual > 0 ? 'text-success' : 'text-danger'}`}>
-                {stockActual > 0 ? `${stockActual} disponibles` : 'Agotado'}
-              </span>
+              <span className={stockActual > 0 ? 'text-success small fw-bold' : 'text-danger small fw-bold'}>{stockActual > 0 ? `${stockActual} disponibles` : 'Agotado'}</span>
             </div>
 
             <div className="d-grid gap-3 d-md-flex mb-5">
-              <Button className="btn-add-cart rounded-pill px-4 py-3 flex-grow-1 fw-bold" onClick={handleAgregar} disabled={!formatoActual || stockActual < 1}>
-                <FaShoppingCart className="me-2"/> Añadir al Carro
-              </Button>
-              <Button className="btn-buy-now rounded-pill px-4 py-3 flex-grow-1 fw-bold" onClick={handleComprarAhora} disabled={!formatoActual || stockActual < 1}>
-                <FaCreditCard className="me-2"/> Comprar Ahora
-              </Button>
+              <Button className="btn-add-cart rounded-pill px-4 py-3 flex-grow-1 fw-bold" onClick={handleAgregar} disabled={!formatoActual || stockActual < 1}><FaShoppingCart className="me-2"/> Añadir al Carro</Button>
+              <Button className="btn-buy-now rounded-pill px-4 py-3 flex-grow-1 fw-bold" onClick={handleComprarAhora} disabled={!formatoActual || stockActual < 1}><FaCreditCard className="me-2"/> Comprar Ahora</Button>
             </div>
 
             <Accordion defaultActiveKey="0" className="custom-accordion">
@@ -129,11 +178,19 @@ function ProductoDetalle() {
         </Col>
       </Row>
 
+      {/* --- AQUÍ AGREGAMOS LA SECCIÓN DE RESEÑAS --- */}
+      <Row>
+        <Col lg={12}>
+           {/* Le pasamos el ID del producto que estamos viendo */}
+           <ResenasProducto idProducto={producto.id_producto} />
+        </Col>
+      </Row>
+
       <div className={`aesthetic-toast ${showToast ? 'show' : ''}`}>
         <FaCheckCircle className="text-success fs-4" />
         <div>
           <div className="fw-bold">¡Añadido al carro!</div>
-          <small className="text-white-50">{producto.nombre} x{cantidad}</small>
+          <small className="text-white-50">{producto.nombre} {horaRetiro ? `(Retiro: ${horaRetiro})` : ''} x{cantidad}</small>
         </div>
       </div>
     </Container>

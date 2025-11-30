@@ -12,19 +12,17 @@ function TablaVentasAdmin({ ventas, alRefrescar }) {
   const [mostrarComprobante, setMostrarComprobante] = useState(false);
   const [imgComprobante, setImgComprobante] = useState('');
   
-  // Estado del Modal de Orden
   const [ordenSeleccionada, setOrdenSeleccionada] = useState(null);
   const [mostrarModalOrden, setMostrarModalOrden] = useState(false);
 
-  // --- EMAILJS ---
+  // --- EMAILJS CONFIG ---
+  // Idealmente mueve esto a .env: import.meta.env.VITE_EMAILJS_SERVICE_ID
+  const serviceID = 'service_94ynerp'; 
+  const templateID = 'template_vz8y98i'; 
+  const publicKey = 'BBJajnSVNxciJjOo3'; 
+
   const enviarCorreoEstado = (venta, nuevoEstado) => {
     const esAprobado = nuevoEstado === 'Completado';
-    
-    // TUS CREDENCIALES
-    const serviceID = 'service_94ynerp'; 
-    const templateID = 'template_vz8y98i'; 
-    const publicKey = 'BBJajnSVNxciJjOo3'; 
-
     const enlaceAccion = esAprobado 
       ? `${window.location.origin}/mi-cuenta` 
       : `${window.location.origin}/rectificar-pago/${venta.id_orden}`;
@@ -166,7 +164,7 @@ function TablaVentasAdmin({ ventas, alRefrescar }) {
         <Modal.Footer className="border-secondary"><Button variant="secondary" onClick={() => setMostrarComprobante(false)}>Cerrar</Button></Modal.Footer>
       </Modal>
 
-      {/* Modal Detalles Orden */}
+      {/* --- MODAL DETALLES DE ORDEN (Aquí mostramos la Reserva) --- */}
       <Modal show={mostrarModalOrden} onHide={cerrarModalOrden} size="lg" centered contentClassName="bg-white text-dark border-0 shadow-lg" style={{ fontFamily: "'Poppins', sans-serif" }}>
         <Modal.Header closeButton className="border-bottom-0 pb-0 pt-4 px-4">
           <Modal.Title className="fw-bold text-uppercase" style={{ color: 'var(--coffee-dark)', letterSpacing: '1px', fontSize: '1.2rem' }}>
@@ -176,32 +174,18 @@ function TablaVentasAdmin({ ventas, alRefrescar }) {
         <Modal.Body className="px-4 pt-2 pb-4">
           {ordenSeleccionada && (
             <div>
-              {/* Datos del Cliente */}
+              {/* Datos Cliente */}
               <div className="mb-4 p-3 rounded bg-light border-start border-4" style={{borderColor: 'var(--coffee-accent)'}}>
                 <Row className="g-3">
                   <Col md={6}>
-                    <div className="d-flex align-items-center mb-2">
-                      <FaUser className="me-2 text-secondary" size={14} />
-                      <span className="fw-bold text-dark">{ordenSeleccionada.nombre} {ordenSeleccionada.apellido}</span>
-                    </div>
-                    <div className="d-flex align-items-center">
-                      <FaEnvelope className="me-2 text-secondary" size={14} />
-                      <span className="text-muted small">{ordenSeleccionada.email}</span>
-                    </div>
+                    <div className="d-flex align-items-center mb-2"><FaUser className="me-2 text-secondary" size={14} /><span className="fw-bold text-dark">{ordenSeleccionada.nombre} {ordenSeleccionada.apellido}</span></div>
+                    <div className="d-flex align-items-center"><FaEnvelope className="me-2 text-secondary" size={14} /><span className="text-muted small">{ordenSeleccionada.email}</span></div>
                   </Col>
                   <Col md={6}>
-                     <div className="d-flex align-items-start mb-2">
-                      <FaMapMarkerAlt className="me-2 text-secondary mt-1" size={14} />
-                      <span className="text-dark small fw-medium lh-sm">
-                        {ordenSeleccionada.direccion}, {ordenSeleccionada.ciudad}<br/>
-                        {ordenSeleccionada.region}
-                      </span>
-                    </div>
+                      <div className="d-flex align-items-start mb-2"><FaMapMarkerAlt className="me-2 text-secondary mt-1" size={14} /><span className="text-dark small fw-medium lh-sm">{ordenSeleccionada.direccion}, {ordenSeleccionada.ciudad}<br/>{ordenSeleccionada.region}</span></div>
                     <div className="d-flex align-items-center">
                       {ordenSeleccionada.tipo_entrega === 'delivery' ? <FaTruck className="me-2 text-secondary" size={14}/> : <FaStore className="me-2 text-secondary" size={14}/>}
-                      <span className="text-uppercase small fw-bold text-secondary" style={{letterSpacing:'0.5px'}}>
-                        {ordenSeleccionada.tipo_entrega || 'Delivery'}
-                      </span>
+                      <span className="text-uppercase small fw-bold text-secondary" style={{letterSpacing:'0.5px'}}>{ordenSeleccionada.tipo_entrega || 'Delivery'}</span>
                     </div>
                   </Col>
                 </Row>
@@ -223,36 +207,32 @@ function TablaVentasAdmin({ ventas, alRefrescar }) {
                         <td className="border-0 py-2 ps-2">
                           <div className="fw-bold text-dark" style={{fontSize: '1rem'}}>{d.nombre_producto}</div>
                           <div className="text-muted small">{d.formato_nombre}</div>
+                          
+                          {/* --- AQUÍ MOSTRAMOS LA HORA AL ADMIN --- */}
+                          {d.datos_reserva && (
+                             <Badge bg="warning" text="dark" className="mt-1">
+                               <FaClock className="me-1"/> 
+                               Retiro: {d.datos_reserva.date.split('-').reverse().join('/')} - {d.datos_reserva.time}
+                             </Badge>
+                          )}
+
                         </td>
                         <td className="border-0 py-2 text-center text-dark fw-medium">x{d.cantidad}</td>
-                        <td className="border-0 py-2 text-end pe-2 fw-bold text-dark">
-                          ${d.subtotal_item.toLocaleString()}
-                        </td>
+                        <td className="border-0 py-2 text-end pe-2 fw-bold text-dark">${d.subtotal_item.toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
                 </Table>
               </div>
 
-              {/* Total */}
               <div className="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
-                 <div className="text-muted small">
-                   Fecha: {new Date(ordenSeleccionada.fecha).toLocaleDateString()}
-                 </div>
-                 <div className="text-end">
-                    <div className="display-6 fw-bold" style={{color: 'var(--coffee-dark)', fontSize: '1.8rem'}}>
-                      ${ordenSeleccionada.total.toLocaleString()}
-                    </div>
-                 </div>
+                 <div className="text-muted small">Fecha: {new Date(ordenSeleccionada.fecha).toLocaleDateString()}</div>
+                 <div className="text-end"><div className="display-6 fw-bold" style={{color: 'var(--coffee-dark)', fontSize: '1.8rem'}}>${ordenSeleccionada.total.toLocaleString()}</div></div>
               </div>
             </div>
           )}
         </Modal.Body>
-        <Modal.Footer className="border-top-0 text-end pb-4 px-4">
-          <Button variant="outline-secondary" className="px-4 py-2 rounded-pill fw-medium" onClick={cerrarModalOrden} style={{borderWidth: '2px'}}>
-            Cerrar
-          </Button>
-        </Modal.Footer>
+        <Modal.Footer className="border-top-0 text-end pb-4 px-4"><Button variant="outline-secondary" className="px-4 py-2 rounded-pill fw-medium" onClick={cerrarModalOrden} style={{borderWidth: '2px'}}>Cerrar</Button></Modal.Footer>
       </Modal>
     </>
   );
