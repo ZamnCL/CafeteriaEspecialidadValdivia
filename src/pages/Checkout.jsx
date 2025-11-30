@@ -44,10 +44,14 @@ function Checkout() {
   const handleInputChange = (e) => { setDatosEnvio({ ...datosEnvio, [e.target.name]: e.target.value }); };
 
   const enviarNotificacionCorreo = (ordenId) => {
-    // ⚠️ PON TUS CLAVES DE EMAILJS AQUÍ SI NO ESTÁN YA
     const serviceID = 'service_94ynerp'; const templateID = 'template_feryfg1'; const publicKey = 'BBJajnSVNxciJjOo3';
 
-    const itemsHtml = cart.map(item => `<tr><td>${item.producto.nombre} (${item.formato.nombre})</td><td style="text-align:center">${item.cantidad}</td><td>$${(item.formato.precio * item.cantidad).toLocaleString()}</td></tr>`).join('');
+    // Agregamos la hora al correo también para que el cliente tenga respaldo
+    const itemsHtml = cart.map(item => {
+        const reservaTexto = item.reserva ? `(Retiro: ${item.reserva.time})` : '';
+        return `<tr><td>${item.producto.nombre} ${reservaTexto} (${item.formato.nombre})</td><td style="text-align:center">${item.cantidad}</td><td>$${(item.formato.precio * item.cantidad).toLocaleString()}</td></tr>`;
+    }).join('');
+    
     const direccionFinal = tipoEntrega === 'retiro' ? 'RETIRO EN TIENDA' : `${datosEnvio.direccion}, ${datosEnvio.ciudad}`;
 
     const templateParams = {
@@ -72,6 +76,7 @@ function Checkout() {
       if (uploadError) throw uploadError;
       const { data: publicURLData } = supabase.storage.from('comprobantes').getPublicUrl(fileName);
 
+      // 1. Crear Orden Principal
       const { data: ordenData, error: ordenError } = await supabase.from('ordenes').insert([{
           user_id: user.id, nombre: user.user_metadata?.nombre || 'Cliente', apellido: user.user_metadata?.apellido || '', rut: datosEnvio.rut, email_contact: datosEnvio.email, email: user.email, telefono: datosEnvio.telefono,
           direccion: tipoEntrega === 'retiro' ? 'Retiro en Tienda' : datosEnvio.direccion, ciudad: tipoEntrega === 'retiro' ? 'Valdivia' : datosEnvio.ciudad, region: tipoEntrega === 'retiro' ? 'Los Ríos' : datosEnvio.region,
@@ -80,7 +85,19 @@ function Checkout() {
 
       if (ordenError) throw ordenError;
 
-      const detalles = cart.map(item => ({ id_orden: ordenData.id_orden, id_producto: item.id_producto, id_formato: item.id_formato, cantidad: item.cantidad, precio_unitario: item.formato.precio, subtotal_item: item.formato.precio * item.cantidad, nombre_producto: item.producto.nombre, formato_nombre: item.formato.nombre }));
+      // 2. Crear Detalles (AQUÍ ES LA CORRECCIÓN)
+      const detalles = cart.map(item => ({ 
+          id_orden: ordenData.id_orden, 
+          id_producto: item.id_producto, 
+          id_formato: item.id_formato, 
+          cantidad: item.cantidad, 
+          precio_unitario: item.formato.precio, 
+          subtotal_item: item.formato.precio * item.cantidad, 
+          nombre_producto: item.producto.nombre, 
+          formato_nombre: item.formato.nombre,
+          datos_reserva: item.reserva // <--- ¡ESTO ES LO QUE FALTABA!
+      }));
+      
       const { error: detallesError } = await supabase.from('detalles_orden').insert(detalles);
       if (detallesError) throw detallesError;
 
@@ -102,7 +119,6 @@ function Checkout() {
             <Card.Body>
               <div className="d-flex gap-3">
                 <Button 
-                  // ESTILO MANUAL PARA COINCIDIR CON LA IMAGEN
                   onClick={() => setTipoEntrega('delivery')}
                   className="flex-grow-1 py-3 fw-bold text-uppercase d-flex align-items-center justify-content-center"
                   style={{
@@ -175,7 +191,19 @@ function Checkout() {
             <Card.Header className="bg-dark text-white fw-bold">Resumen</Card.Header>
             <Card.Body>
               <ListGroup variant="flush" className="mb-3">
-                {cart.map((item, idx) => (<ListGroup.Item key={idx} className="d-flex justify-content-between px-0"><div><small className="fw-bold">{item.producto.nombre}</small><div className="text-muted small">{item.formato.nombre} x {item.cantidad}</div></div><span>${(item.formato.precio * item.cantidad).toLocaleString()}</span></ListGroup.Item>))}
+                {cart.map((item, idx) => (
+                    <ListGroup.Item key={idx} className="d-flex justify-content-between px-0">
+                        <div>
+                            <small className="fw-bold">{item.producto.nombre}</small>
+                            <div className="text-muted small">
+                                {item.formato.nombre} x {item.cantidad}
+                                {/* Mostrar hora en el resumen del checkout también */}
+                                {item.reserva && <span className="d-block text-warning fw-bold">Retiro: {item.reserva.time}</span>}
+                            </div>
+                        </div>
+                        <span>${(item.formato.precio * item.cantidad).toLocaleString()}</span>
+                    </ListGroup.Item>
+                ))}
               </ListGroup>
               <div className="d-flex justify-content-between small text-muted mb-2"><span>Subtotal:</span><span>${totalProductos.toLocaleString()}</span></div>
               <div className="d-flex justify-content-between small text-muted mb-3 border-bottom pb-3"><span>Envío:</span><span>{costoEnvio === 0 ? 'Gratis' : `$${costoEnvio.toLocaleString()}`}</span></div>
