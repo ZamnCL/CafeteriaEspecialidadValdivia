@@ -1,29 +1,64 @@
 import { useEffect, useState } from 'react';
-import { Container, Row, Col, Spinner, Image } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
+import { Container, Row, Col, Spinner, Image, Card } from 'react-bootstrap';
+import { Link, useLocation } from 'react-router-dom';
 import { supabase } from '../supabase/cliente';
 import ProductCarousel from '../components/ProductCarousel';
 import heroBackground from '../assets/hero_background.png';
-import { FaFlask, FaAward, FaLeaf } from 'react-icons/fa';
+import { FaFlask, FaAward, FaLeaf, FaMapMarkerAlt, FaClock, FaPhone, FaEnvelope } from 'react-icons/fa';
 
 function Home() {
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // --- DATOS POR DEFECTO ---
+  const [infoLocal, setInfoLocal] = useState({
+    direccion: 'Av. Pedro Aguirre Cerda 2115, Valdivia',
+    telefono: '+56 63 222 3344',
+    correo: 'contacto@cafevaldivia.cl',
+    horario_atencion: 'Lun - Sáb: 8:30 a 20:00 | Dom: Cerrado',
+    // Enlace del mapa
+    mapa_ubicacion: 'https://maps.google.com/maps?q=INACAP+Valdivia,+Av.+Pedro+Aguirre+Cerda+2115&t=&z=15&ie=UTF8&iwloc=&output=embed'
+  });
 
+  const { hash } = useLocation();
+
+  // Scroll automático
+  useEffect(() => {
+    if (hash) {
+      const element = document.getElementById(hash.replace('#', ''));
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    }
+  }, [hash]);
+
+  // Carga de datos
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        // 1. Productos
         const { data: prodData } = await supabase
           .from('productos')
           .select(`*, categoria:categoria!productos_id_categoria_fkey (id_categoria, nombre), formatos:formatos!formatos_id_producto_fkey (*)`)
           .eq('estado', 'Publicado');
 
+        // 2. Categorías
         const { data: catData } = await supabase.from('categoria').select('*');
+
+        // 3. Info del Local
+        const { data: infoData } = await supabase.from('informacionlocal').select('*').single();
 
         setProductos(prodData || []);
         setCategorias(catData || []);
+        
+        if (infoData && infoData.mapa_ubicacion) {
+            setInfoLocal(infoData);
+        }
+
       } catch (err) {
         console.error(err);
       } finally {
@@ -84,8 +119,6 @@ function Home() {
       {/* 3. HISTORIA Y PROCESO */}
       <section className="py-5">
         <Container>
-          
-          {/* INTRODUCCIÓN */}
           <Row className="align-items-center justify-content-center mb-5">
             <Col lg={8} className="text-center">
               <div style={{width: '60px', height: '3px', background: 'var(--coffee-accent)', margin: '0 auto 20px auto'}}></div>
@@ -105,12 +138,8 @@ function Home() {
             </Col>
           </Row>
 
-          {/* DETALLE DEL PROCESO - IMÁGENES SIN BORDE BLANCO */}
-          
-          {/* Bloque 1: Grano Verde */}
           <Row className="align-items-center mb-5 g-5">
             <Col lg={6}>
-              {/* QUITÉ: border border-2 border-white */}
               <div className="rounded-4 overflow-hidden shadow-lg">
                 <Image src="https://qnpdzmzlfbffdommcdkc.supabase.co/storage/v1/object/public/assets/cafe_verde.jpg" fluid className="w-100" style={{objectFit: 'cover', height: '350px'}} />
               </div>
@@ -127,7 +156,6 @@ function Home() {
             </Col>
           </Row>
 
-          {/* Bloque 2: El Tostado */}
           <Row className="align-items-center mb-5 g-5 flex-lg-row-reverse">
             <Col lg={6}>
               <div className="rounded-4 overflow-hidden shadow-lg">
@@ -146,8 +174,7 @@ function Home() {
             </Col>
           </Row>
 
-          {/* Bloque 3: Chaff y Sustentabilidad */}
-          <Row className="align-items-center g-5">
+          <Row className="align-items-center g-5 mb-5">
             <Col lg={6}>
               <div className="rounded-4 overflow-hidden shadow-lg">
                 <Image src="https://qnpdzmzlfbffdommcdkc.supabase.co/storage/v1/object/public/assets/DSCF0948.jpg" fluid className="w-100" style={{objectFit: 'cover', height: '350px'}} />
@@ -164,7 +191,68 @@ function Home() {
               </p>
             </Col>
           </Row>
+        </Container>
+      </section>
 
+      {/* 4. SECCIÓN VISÍTANOS (FONDO TRANSPARENTE) */}
+      <section id="visitanos" className="py-5">
+        <Container>
+          <div className="text-center mb-5">
+            <h2 className="fw-bold text-coffee-dark mb-3">Visítanos</h2>
+            <p className="text-muted">Encuéntranos en el corazón de la vida universitaria.</p>
+          </div>
+
+          <Card className="border-0 shadow-lg overflow-hidden rounded-4">
+            <Row className="g-0">
+              {/* Lado Izquierdo: Información */}
+              <Col lg={4} className="bg-white p-5 d-flex flex-column justify-content-center">
+                <h4 className="fw-bold mb-4 text-coffee-dark">Información de Contacto</h4>
+                
+                <div className="mb-4">
+                  <div className="d-flex align-items-center text-warning mb-2 h5">
+                    <FaMapMarkerAlt className="me-3" /> Ubicación
+                  </div>
+                  <p className="text-muted ms-4 mb-0">{infoLocal.direccion}</p>
+                </div>
+
+                <div className="mb-4">
+                  <div className="d-flex align-items-center text-warning mb-2 h5">
+                    <FaClock className="me-3" /> Horario de Atención
+                  </div>
+                  <p className="text-muted ms-4 mb-0">{infoLocal.horario_atencion}</p>
+                </div>
+
+                <div className="mb-4">
+                  <div className="d-flex align-items-center text-warning mb-2 h5">
+                    <FaPhone className="me-3" /> Teléfono
+                  </div>
+                  <p className="text-muted ms-4 mb-0">{infoLocal.telefono}</p>
+                </div>
+
+                <div>
+                  <div className="d-flex align-items-center text-warning mb-2 h5">
+                    <FaEnvelope className="me-3" /> Correo
+                  </div>
+                  <p className="text-muted ms-4 mb-0">{infoLocal.correo}</p>
+                </div>
+              </Col>
+
+              {/* Lado Derecho: Mapa */}
+              <Col lg={8}>
+                <div style={{ minHeight: '450px', height: '100%' }}>
+                  <iframe 
+                    src={infoLocal.mapa_ubicacion} 
+                    width="100%" 
+                    height="100%" 
+                    style={{ border: 0, minHeight: '450px' }} 
+                    allowFullScreen="" 
+                    loading="lazy"
+                    title="Ubicación Cafetería"
+                  ></iframe>
+                </div>
+              </Col>
+            </Row>
+          </Card>
         </Container>
       </section>
     </>

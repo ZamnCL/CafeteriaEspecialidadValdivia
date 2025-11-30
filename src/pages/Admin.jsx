@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Container, Button, Card, Alert, Tab, Tabs, Nav, Modal, Table, Badge, InputGroup, Form } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
-import { FaPlus, FaTrash, FaEdit, FaInfinity, FaList, FaMugHot, FaSnowflake, FaFilter, FaSearch, FaEnvelope, FaBuilding, FaUser } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaEdit, FaInfinity, FaSearch, FaEnvelope, FaBuilding, FaUser, FaChartBar } from 'react-icons/fa';
 import './Admin.css';
 
 // Importar componentes
 import FormularioProductoAdmin from '../components/admin/FormularioProductoAdmin';
 import TablaVentasAdmin from '../components/admin/TablaVentasAdmin';
+import EstadisticasAdmin from '../components/admin/EstadisticasAdmin'; // <--- IMPORTACIÓN NUEVA
+import InfoLocalAdmin from '../components/admin/InfoLocalAdmin'; // Si ya creaste el de configuración
 
 function Admin() {
   const [vista, setVista] = useState('lista'); 
@@ -16,7 +18,7 @@ function Admin() {
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
   const [busqueda, setBusqueda] = useState(''); 
 
-  // NUEVO: Filtro Mensajes
+  // Filtro Mensajes
   const [filtroMensajes, setFiltroMensajes] = useState('todos');
 
   // Datos
@@ -43,10 +45,9 @@ function Admin() {
       const { data: prodData } = await supabase.from('productos').select(`*, categoria:categoria!productos_id_categoria_fkey (nombre), formatos:formatos!formatos_id_producto_fkey (*)`) .order('id_producto', { ascending: false });
       setProductos(prodData || []);
 
-      // --- CAMBIO CLAVE: Traer también los detalles de la orden ---
       const { data: salesData } = await supabase
         .from('ordenes')
-        .select(`*, detalles_orden(*)`) // <--- AQUÍ TRAEMOS EL DESGLOSE
+        .select(`*, detalles_orden(*)`) 
         .order('fecha', { ascending: false });
       setVentas(salesData || []);
 
@@ -61,19 +62,16 @@ function Admin() {
     }
   };
 
-  // --- NUEVA FUNCIÓN: Eliminar Mensaje ---
   const eliminarMensaje = async (id) => {
     if(!confirm("¿Eliminar este mensaje?")) return;
     const { error } = await supabase.from('mensajescontacto').delete().eq('id_mensaje', id);
     if (error) return alert("Error: " + error.message);
-    cargarDatos(); // Recargar tabla
+    cargarDatos(); 
   };
 
-  // Ayudantes
   const obtenerNombreCategoria = (id) => categorias.find(c => c.id_categoria == id)?.nombre.toLowerCase() || '';
   const esPreparacion = (id) => { const n = obtenerNombreCategoria(id); return n.includes('preparación') || n.includes('filtrado') || n.includes('bebida') || n.includes('barra'); };
 
-  // Manejadores
   const manejarBusqueda = (e) => {
     const termino = e.target.value;
     setBusqueda(termino);
@@ -105,7 +103,6 @@ function Admin() {
   const irAEditar = (prod) => { setProductoAEditar(prod); setVista('formulario'); };
   const alExitoFormulario = (texto) => { setMensaje({ tipo: 'success', texto: texto }); cargarDatos(); setVista('lista'); };
 
-  // FILTROS
   const productosFiltrados = productos.filter(p => {
     const esPrep = esPreparacion(p.id_categoria);
     const cumpleBusqueda = p.nombre.toLowerCase().includes(busqueda.toLowerCase());
@@ -115,7 +112,6 @@ function Admin() {
     else return p.id_categoria == filtroCategoria;
   });
 
-  // NUEVO: Filtro de Mensajes
   const mensajesFiltrados = mensajes.filter(m => {
     if (filtroMensajes === 'todos') return true;
     return m.tipo === filtroMensajes;
@@ -128,8 +124,13 @@ function Admin() {
       <h2 className="mb-4 text-coffee-title">Panel de Administración</h2>
       {mensaje.texto && <Alert variant={mensaje.tipo} dismissible onClose={()=>setMensaje({})}>{mensaje.texto}</Alert>}
 
-      <Tabs defaultActiveKey="inventario" className="mb-4 main-tabs" variant="pills">
+      <Tabs defaultActiveKey="dashboard" className="mb-4 main-tabs" variant="pills">
         
+        {/* --- PESTAÑA DASHBOARD (NUEVA) --- */}
+        <Tab eventKey="dashboard" title={<span><FaChartBar className="me-2"/>Dashboard</span>}>
+          <EstadisticasAdmin />
+        </Tab>
+
         {/* PESTAÑA INVENTARIO */}
         <Tab eventKey="inventario" title="Inventario">
           {vista === 'lista' ? (
@@ -153,12 +154,6 @@ function Admin() {
                   <Nav.Item><Nav.Link eventKey="preparaciones" onClick={() => setFiltroCategoria('preparaciones')} active={filtroCategoria === 'preparaciones'}>Preparaciones</Nav.Link></Nav.Item>
                   {categoriasGenerales.map(cat => ( <Nav.Item key={cat.id_categoria}><Nav.Link active={filtroCategoria == cat.id_categoria} onClick={() => setFiltroCategoria(cat.id_categoria)}>{cat.nombre}</Nav.Link></Nav.Item> ))}
                 </Nav>
-
-                {filtroCategoria === 'preparaciones' && (
-                  <div className="mb-4 d-flex justify-content-center gap-2 animate-fade-in">
-                    {/* Botones de sub-filtro aquí si es necesario */}
-                  </div>
-                )}
 
                 <Table hover responsive className="align-middle table-dark-custom">
                   <thead><tr><th style={{paddingLeft:'1.5rem'}}>Producto</th><th>Precio</th><th>Stock</th><th>Estado</th><th className="text-end" style={{paddingRight:'1.5rem'}}>Acción</th></tr></thead>
@@ -196,13 +191,11 @@ function Admin() {
           </Card>
         </Tab>
 
-        {/* PESTAÑA MENSAJES (ACTUALIZADA) */}
+        {/* PESTAÑA MENSAJES */}
         <Tab eventKey="mensajes" title="Mensajes">
           <Card className="card-admin-dark border-0">
             <Card.Body className="p-4">
               <h5 className="text-coffee-title mb-4">Mensajes de Contacto</h5>
-              
-              {/* FILTROS DE MENSAJES */}
               <Nav variant="pills" className="mb-4 nav-pills-coffee">
                 <Nav.Item><Nav.Link active={filtroMensajes === 'todos'} onClick={() => setFiltroMensajes('todos')}>Todos</Nav.Link></Nav.Item>
                 <Nav.Item><Nav.Link active={filtroMensajes === 'general'} onClick={() => setFiltroMensajes('general')}><FaUser className="me-1"/> General</Nav.Link></Nav.Item>
@@ -233,7 +226,6 @@ function Admin() {
                         </td>
                         <td>
                           <div className="fw-bold text-white">{m.nombre_remitente}</div>
-                          {/* CAMBIO: Texto del correo en blanco */}
                           <div className="small text-white">{m.correo_remitente}</div> 
                           {m.tipo === 'mayorista' && <div className="small text-warning mt-1">{m.nombre_empresa} (RUT: {m.rut_empresa})</div>}
                         </td>
@@ -260,6 +252,12 @@ function Admin() {
             </Card.Body>
           </Card>
         </Tab>
+
+        {/* PESTAÑA CONFIGURACIÓN (Si la creaste) */}
+        <Tab eventKey="config" title="Configuración">
+          <InfoLocalAdmin />
+        </Tab>
+
       </Tabs>
 
       <Modal show={mostrarModalCategoria} onHide={() => setMostrarModalCategoria(false)} centered contentClassName="card-admin-dark border-0">
