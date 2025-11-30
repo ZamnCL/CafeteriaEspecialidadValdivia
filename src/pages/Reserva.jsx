@@ -1,15 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Spinner, Alert, Badge } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente'; 
 import ProductCard from '../components/ProductCard';
-import { FaClock, FaMugHot } from 'react-icons/fa';
+import { FaClock, FaMugHot, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { useSearchParams } from 'react-router-dom';
 import './Catalogo.css'; 
 
 function Reserva() {
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  const [searchParams] = useSearchParams();
+  const catParam = searchParams.get('categoria');
+
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
+  
+  // Referencia para scroll
+  const scrollContainerRef = useRef(null);
 
   const esDeReserva = (nombreCat) => {
     if (!nombreCat) return false;
@@ -18,33 +26,57 @@ function Reserva() {
   };
 
   useEffect(() => {
-    const fetchMenu = async () => {
-      setLoading(true);
-      try {
-        const { data: catData } = await supabase.from('categoria').select('*');
-        const categoriasPermitidas = (catData || []).filter(c => esDeReserva(c.nombre));
-        setCategorias(categoriasPermitidas);
-        const idsPermitidos = categoriasPermitidas.map(c => c.id_categoria);
-
-        if (idsPermitidos.length > 0) {
-            const { data: prodData } = await supabase
-            .from('productos')
-            .select(`*, categoria:categoria!productos_id_categoria_fkey (nombre), formatos:formatos!formatos_id_producto_fkey (*)`)
-            .eq('estado', 'Publicado')
-            .in('id_categoria', idsPermitidos)
-            .order('id_producto', { ascending: false });
-            setProductos(prodData || []);
-        } else {
-            setProductos([]);
-        }
-      } catch (error) { console.error(error); } finally { setLoading(false); }
-    };
     fetchMenu();
   }, []);
 
+  useEffect(() => {
+    if (catParam) {
+      setFiltroCategoria(parseInt(catParam));
+    } else {
+      setFiltroCategoria('todos');
+    }
+  }, [catParam]);
+
+  const fetchMenu = async () => {
+    setLoading(true);
+    try {
+      const { data: catData } = await supabase.from('categoria').select('*');
+      const categoriasPermitidas = (catData || []).filter(c => esDeReserva(c.nombre));
+      setCategorias(categoriasPermitidas);
+      const idsPermitidos = categoriasPermitidas.map(c => c.id_categoria);
+
+      if (idsPermitidos.length > 0) {
+          const { data: prodData } = await supabase
+          .from('productos')
+          .select(`*, categoria:categoria!productos_id_categoria_fkey (nombre), formatos:formatos!formatos_id_producto_fkey (*)`)
+          .eq('estado', 'Publicado')
+          .in('id_categoria', idsPermitidos)
+          .order('id_producto', { ascending: false });
+          setProductos(prodData || []);
+      } else {
+          setProductos([]);
+      }
+    } catch (error) { console.error(error); } finally { setLoading(false); }
+  };
+
+  const scroll = (direction) => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      const scrollAmount = 300; 
+      const targetScroll = direction === 'left' 
+        ? container.scrollLeft - scrollAmount 
+        : container.scrollLeft + scrollAmount;
+      
+      container.scrollTo({
+        left: targetScroll,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const productosFiltrados = productos.filter(p => {
     if (filtroCategoria === 'todos') return true;
-    return p.id_categoria === filtroCategoria;
+    return p.id_categoria == filtroCategoria;
   });
 
   if (loading) return <Container className="mt-5 text-center py-5"><Spinner animation="border" variant="secondary"/></Container>;
@@ -60,18 +92,28 @@ function Reserva() {
         </Alert>
       </div>
 
-      <div className="category-scroll-container mb-5 justify-content-center">
-        <button className={`category-pill ${filtroCategoria === 'todos' ? 'active' : ''}`} onClick={() => setFiltroCategoria('todos')}>Todos</button>
-        {categorias.map(cat => (
-          <button key={cat.id_categoria} className={`category-pill ${filtroCategoria === cat.id_categoria ? 'active' : ''}`} onClick={() => setFiltroCategoria(cat.id_categoria)}>{cat.nombre}</button>
-        ))}
+      {/* --- CARRUSEL DE CATEGORÍAS --- */}
+      <div className="category-carousel-wrapper mb-5">
+        <button className="carousel-nav-btn left" onClick={() => scroll('left')}>
+          <FaChevronLeft />
+        </button>
+
+        <div className="category-scroll-container" ref={scrollContainerRef}>
+          <button className={`category-pill ${filtroCategoria === 'todos' ? 'active' : ''}`} onClick={() => setFiltroCategoria('todos')}>Todos</button>
+          {categorias.map(cat => (
+            <button key={cat.id_categoria} className={`category-pill ${filtroCategoria === cat.id_categoria ? 'active' : ''}`} onClick={() => setFiltroCategoria(cat.id_categoria)}>{cat.nombre}</button>
+          ))}
+        </div>
+
+        <button className="carousel-nav-btn right" onClick={() => scroll('right')}>
+          <FaChevronRight />
+        </button>
       </div>
 
       <Row className="g-4">
         {productosFiltrados.map(prod => (
           <Col key={prod.id_producto} sm={6} md={4} lg={3}>
             <div className="h-100 position-relative">
-                {/* ACTIVAMOS MODO RESERVA */}
                 <ProductCard 
                   producto={prod} 
                   isReserva={true} 

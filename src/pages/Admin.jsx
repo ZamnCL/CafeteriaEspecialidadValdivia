@@ -1,24 +1,25 @@
 import { useState, useEffect } from 'react';
 import { Container, Button, Card, Alert, Tab, Tabs, Nav, Modal, Table, Badge, InputGroup, Form } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
-import { FaPlus, FaTrash, FaEdit, FaInfinity, FaSearch, FaEnvelope, FaBuilding, FaUser, FaChartBar } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaEdit, FaInfinity, FaSearch, FaEnvelope, FaBuilding, FaUser, FaChartBar, FaNewspaper, FaCheckCircle } from 'react-icons/fa';
 import './Admin.css';
 
 // Importar componentes
 import FormularioProductoAdmin from '../components/admin/FormularioProductoAdmin';
 import TablaVentasAdmin from '../components/admin/TablaVentasAdmin';
-import EstadisticasAdmin from '../components/admin/EstadisticasAdmin'; // <--- IMPORTACIÓN NUEVA
-import InfoLocalAdmin from '../components/admin/InfoLocalAdmin'; // Si ya creaste el de configuración
+import EstadisticasAdmin from '../components/admin/EstadisticasAdmin';
+import InfoLocalAdmin from '../components/admin/InfoLocalAdmin';
+import FormularioBlogAdmin from '../components/admin/FormularioBlogAdmin';
 
 function Admin() {
   const [vista, setVista] = useState('lista'); 
+  const [vistaBlog, setVistaBlog] = useState('lista'); 
   const [productoAEditar, setProductoAEditar] = useState(null);
+  const [blogAEditar, setBlogAEditar] = useState(null);
   
-  // Filtros Inventario
+  // Filtros
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
   const [busqueda, setBusqueda] = useState(''); 
-
-  // Filtro Mensajes
   const [filtroMensajes, setFiltroMensajes] = useState('todos');
 
   // Datos
@@ -26,9 +27,14 @@ function Admin() {
   const [categorias, setCategorias] = useState([]);
   const [ventas, setVentas] = useState([]);
   const [mensajes, setMensajes] = useState([]);
+  const [blogs, setBlogs] = useState([]);
   
   const [cargando, setCargando] = useState(true);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
+
+  // --- ESTADOS PARA EL TOAST (NOTIFICACIÓN) ---
+  const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   // Modal Nueva Categoría
   const [mostrarModalCategoria, setMostrarModalCategoria] = useState(false);
@@ -45,14 +51,14 @@ function Admin() {
       const { data: prodData } = await supabase.from('productos').select(`*, categoria:categoria!productos_id_categoria_fkey (nombre), formatos:formatos!formatos_id_producto_fkey (*)`) .order('id_producto', { ascending: false });
       setProductos(prodData || []);
 
-      const { data: salesData } = await supabase
-        .from('ordenes')
-        .select(`*, detalles_orden(*)`) 
-        .order('fecha', { ascending: false });
+      const { data: salesData } = await supabase.from('ordenes').select(`*, detalles_orden(*)`).order('fecha', { ascending: false });
       setVentas(salesData || []);
 
       const { data: msgData } = await supabase.from('mensajescontacto').select('*').order('fecha_envio', { ascending: false });
       setMensajes(msgData || []);
+
+      const { data: blogData } = await supabase.from('blog').select('*').order('fecha_creacion', { ascending: false });
+      setBlogs(blogData || []);
 
     } catch (error) { 
       console.error(error); 
@@ -62,16 +68,57 @@ function Admin() {
     }
   };
 
-  const eliminarMensaje = async (id) => {
-    if(!confirm("¿Eliminar este mensaje?")) return;
-    const { error } = await supabase.from('mensajescontacto').delete().eq('id_mensaje', id);
-    if (error) return alert("Error: " + error.message);
+  // --- FUNCIONES PRODUCTOS ---
+  const eliminarProducto = async (id) => { 
+    if(!confirm("¿Eliminar producto?")) return; 
+    await supabase.from('productos').delete().eq('id_producto', id); 
     cargarDatos(); 
+    
+    // Notificación al eliminar también
+    setToastMsg("Producto Eliminado");
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+  
+  const irACrear = () => { setProductoAEditar(null); setVista('formulario'); };
+  const irAEditar = (prod) => { setProductoAEditar(prod); setVista('formulario'); };
+  
+  // --- CORRECCIÓN AQUÍ: Usar Toast en lugar de Alert ---
+  const alExitoFormulario = (texto) => { 
+    setToastMsg(texto); // "Producto Creado" o "Producto Modificado"
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+    
+    cargarDatos(); 
+    setVista('lista'); 
   };
 
+  // --- FUNCIONES BLOG ---
+  const eliminarBlog = async (id) => { 
+      if(!confirm("¿Eliminar esta entrada?")) return; 
+      await supabase.from('blog').delete().eq('id', id); 
+      cargarDatos(); 
+      setToastMsg("Blog Eliminado");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+  };
+  
+  const irACrearBlog = () => { setBlogAEditar(null); setVistaBlog('formulario'); };
+  const irAEditarBlog = (blog) => { setBlogAEditar(blog); setVistaBlog('formulario'); };
+  
+  const alExitoBlog = (texto) => { 
+      setToastMsg(texto); 
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      cargarDatos(); 
+      setVistaBlog('lista'); 
+  };
+
+  // --- FUNCIONES OTROS ---
+  const eliminarMensaje = async (id) => { if(!confirm("¿Eliminar este mensaje?")) return; const { error } = await supabase.from('mensajescontacto').delete().eq('id_mensaje', id); if (error) return alert("Error: " + error.message); cargarDatos(); };
   const obtenerNombreCategoria = (id) => categorias.find(c => c.id_categoria == id)?.nombre.toLowerCase() || '';
   const esPreparacion = (id) => { const n = obtenerNombreCategoria(id); return n.includes('preparación') || n.includes('filtrado') || n.includes('bebida') || n.includes('barra'); };
-
+  
   const manejarBusqueda = (e) => {
     const termino = e.target.value;
     setBusqueda(termino);
@@ -85,12 +132,6 @@ function Admin() {
     }
   };
 
-  const eliminarProducto = async (id) => {
-    if(!confirm("¿Eliminar producto?")) return;
-    await supabase.from('productos').delete().eq('id_producto', id);
-    cargarDatos();
-  };
-
   const guardarCategoria = async () => {
     if (!datosNuevaCategoria.nombre) return alert("Nombre obligatorio");
     await supabase.from('categoria').insert([{ nombre: datosNuevaCategoria.nombre }]);
@@ -98,10 +139,6 @@ function Admin() {
     setDatosNuevaCategoria({ nombre: '' });
     cargarDatos();
   };
-
-  const irACrear = () => { setProductoAEditar(null); setVista('formulario'); };
-  const irAEditar = (prod) => { setProductoAEditar(prod); setVista('formulario'); };
-  const alExitoFormulario = (texto) => { setMensaje({ tipo: 'success', texto: texto }); cargarDatos(); setVista('lista'); };
 
   const productosFiltrados = productos.filter(p => {
     const esPrep = esPreparacion(p.id_categoria);
@@ -120,18 +157,17 @@ function Admin() {
   const categoriasGenerales = categorias.filter(c => !esPreparacion(c.id_categoria));
 
   return (
-    <Container className="my-5">
+    <Container className="my-5 position-relative">
       <h2 className="mb-4 text-coffee-title">Panel de Administración</h2>
+      
       {mensaje.texto && <Alert variant={mensaje.tipo} dismissible onClose={()=>setMensaje({})}>{mensaje.texto}</Alert>}
 
       <Tabs defaultActiveKey="dashboard" className="mb-4 main-tabs" variant="pills">
         
-        {/* --- PESTAÑA DASHBOARD (NUEVA) --- */}
         <Tab eventKey="dashboard" title={<span><FaChartBar className="me-2"/>Dashboard</span>}>
           <EstadisticasAdmin />
         </Tab>
 
-        {/* PESTAÑA INVENTARIO */}
         <Tab eventKey="inventario" title="Inventario">
           {vista === 'lista' ? (
             <Card className="card-admin-dark border-0">
@@ -142,7 +178,6 @@ function Admin() {
                     <InputGroup size="sm" style={{ width: '250px' }}>
                       <InputGroup.Text style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'var(--coffee-accent)', color: 'var(--coffee-accent)' }}><FaSearch /></InputGroup.Text>
                       <Form.Control placeholder="Buscar..." value={busqueda} onChange={manejarBusqueda} className="custom-search-input" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'var(--coffee-accent)', color: 'var(--coffee-accent)' }} />
-                      <style>{`.custom-search-input::placeholder { color: var(--coffee-accent) !important; opacity: 0.7; }`}</style>
                     </InputGroup>
                     <button className="btn btn-coffee-pill shadow-none d-flex align-items-center gap-2" onClick={irACrear}><FaPlus /> Nuevo Producto</button>
                     <button className="btn btn-coffee-pill shadow-none d-flex align-items-center gap-2" onClick={() => setMostrarModalCategoria(true)}><FaPlus /> Nueva Categoría</button>
@@ -168,9 +203,7 @@ function Admin() {
                   ))}</tbody>
                 </Table>
                 
-                {productosFiltrados.length === 0 && (
-                  <div className="text-center py-5 text-muted">No se encontraron productos en esta sección.</div>
-                )}
+                {productosFiltrados.length === 0 && <div className="text-center py-5 text-muted">No se encontraron productos en esta sección.</div>}
               </Card.Body>
             </Card>
           ) : (
@@ -182,7 +215,60 @@ function Admin() {
           )}
         </Tab>
 
-        {/* PESTAÑA VENTAS */}
+        <Tab eventKey="blog" title={<span><FaNewspaper className="me-2"/>Blog</span>}>
+          {vistaBlog === 'lista' ? (
+            <Card className="card-admin-dark border-0">
+              <Card.Body className="p-4">
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <h5 className="mb-0 text-coffee-title text-coffee-accent">Gestión de Blog</h5>
+                  <button className="btn btn-coffee-pill shadow-none d-flex align-items-center gap-2" onClick={irACrearBlog}>
+                    <FaPlus /> Nueva Historia
+                  </button>
+                </div>
+
+                <Table hover responsive className="align-middle table-dark-custom">
+                  <thead>
+                    <tr>
+                      <th style={{paddingLeft:'1.5rem'}}>Imagen</th>
+                      <th>Título</th>
+                      <th>Fecha</th>
+                      <th className="text-end" style={{paddingRight:'1.5rem'}}>Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {blogs.map(b => (
+                      <tr key={b.id}>
+                        <td style={{paddingLeft: '1.5rem', width: '100px'}}>
+                          <div className="product-image-premium" style={{width: '60px', height: '60px'}}>
+                            {b.imagen ? <img src={b.imagen} alt="blog" /> : <div className="w-100 h-100 bg-secondary"></div>}
+                          </div>
+                        </td>
+                        <td><div className="fw-bold text-white">{b.titulo}</div></td>
+                        <td className="text-white-50">{new Date(b.fecha_creacion).toLocaleDateString()}</td>
+                        <td className="text-end" style={{paddingRight: '1.5rem'}}>
+                          <Button size="sm" className="me-2 btn-action-pill" onClick={() => irAEditarBlog(b)}><FaEdit /></Button>
+                          <Button size="sm" className="btn-action-pill delete" onClick={() => eliminarBlog(b.id)}><FaTrash /></Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {blogs.length === 0 && <tr><td colSpan="4" className="text-center py-5 text-muted">No hay entradas en el blog.</td></tr>}
+                  </tbody>
+                </Table>
+              </Card.Body>
+            </Card>
+          ) : (
+            <Card className="card-admin-dark border-0">
+              <Card.Body className="p-4">
+                <FormularioBlogAdmin 
+                  blogAEditar={blogAEditar} 
+                  alCancelar={() => setVistaBlog('lista')} 
+                  alExito={alExitoBlog} 
+                />
+              </Card.Body>
+            </Card>
+          )}
+        </Tab>
+
         <Tab eventKey="ventas" title="Ventas">
           <Card className="card-admin-dark border-0">
             <Card.Body className="p-4">
@@ -191,7 +277,6 @@ function Admin() {
           </Card>
         </Tab>
 
-        {/* PESTAÑA MENSAJES */}
         <Tab eventKey="mensajes" title="Mensajes">
           <Card className="card-admin-dark border-0">
             <Card.Body className="p-4">
@@ -253,7 +338,6 @@ function Admin() {
           </Card>
         </Tab>
 
-        {/* PESTAÑA CONFIGURACIÓN (Si la creaste) */}
         <Tab eventKey="config" title="Configuración">
           <InfoLocalAdmin />
         </Tab>
@@ -267,6 +351,16 @@ function Admin() {
           <Button className="btn-coffee-pill w-100 border-0" onClick={guardarCategoria}>Crear</Button>
         </Modal.Body>
       </Modal>
+
+      {/* --- NOTIFICACIÓN FLOTANTE UNIFICADA --- */}
+      <div className={`aesthetic-toast ${showToast ? 'show' : ''}`}>
+        <FaCheckCircle className="text-success fs-4" />
+        <div>
+          <div className="fw-bold">¡Éxito!</div>
+          <small className="text-white-50">{toastMsg}</small>
+        </div>
+      </div>
+
     </Container>
   );
 }

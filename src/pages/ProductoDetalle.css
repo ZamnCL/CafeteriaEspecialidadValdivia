@@ -5,8 +5,8 @@
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(92, 61, 46, 0.1);
-  background-color: #fff;
-  padding: 1rem;
+  background-color: transparent;
+  padding: 0;
 }
 
 /* Títulos y Precios */
@@ -22,7 +22,7 @@
   font-size: 2rem;
 }
 
-/* Botones de Acción Principales */
+/* --- BOTÓN: AÑADIR AL CARRO (Sólido) --- */
 .btn-add-cart {
   background-color: var(--coffee-dark);
   border: 2px solid var(--coffee-dark);
@@ -36,6 +36,25 @@
   transform: translateY(-2px);
 }
 
+/* BLINDAJE CONTRA AZUL (Active, Focus, Disabled) */
+.btn-add-cart:active,
+.btn-add-cart:focus,
+.btn-add-cart:focus-visible {
+  background-color: #3e2b22 !important;
+  border-color: #3e2b22 !important;
+  color: white !important;
+  box-shadow: 0 0 0 0.25rem rgba(92, 61, 46, 0.5) !important; /* Anillo café */
+  outline: none !important;
+}
+
+.btn-add-cart:disabled {
+  background-color: var(--coffee-dark) !important;
+  border-color: var(--coffee-dark) !important;
+  color: white !important;
+  opacity: 0.65;
+}
+
+/* --- BOTÓN: COMPRAR AHORA (Borde) --- */
 .btn-buy-now {
   background-color: transparent;
   border: 2px solid var(--coffee-dark);
@@ -49,24 +68,42 @@
   transform: translateY(-2px);
 }
 
-/* --- SELECTOR DE CANTIDAD CUADRADO --- */
+/* BLINDAJE CONTRA AZUL (Active, Focus, Disabled) */
+.btn-buy-now:active,
+.btn-buy-now:focus,
+.btn-buy-now:focus-visible {
+  background-color: var(--coffee-dark) !important;
+  border-color: var(--coffee-dark) !important;
+  color: white !important;
+  box-shadow: 0 0 0 0.25rem rgba(92, 61, 46, 0.5) !important;
+  outline: none !important;
+}
+
+.btn-buy-now:disabled {
+  background-color: transparent !important;
+  border-color: var(--coffee-dark) !important;
+  color: var(--coffee-dark) !important;
+  opacity: 0.5;
+}
+
+/* --- SELECTOR DE CANTIDAD OSCURO --- */
 .quantity-selector {
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--coffee-dark);
     border-radius: 8px !important;
     padding: 4px;
     display: flex;
     align-items: center;
     width: fit-content;
-    background-color: #fff;
+    background-color: var(--coffee-dark);
 }
 
 .btn-quantity {
     width: 38px;
     height: 38px;
     border-radius: 6px !important;
-    border: 1px solid #dee2e6;
-    background: #f8f9fa;
-    color: var(--coffee-dark);
+    border: none;
+    background: var(--coffee-dark);
+    color: var(--coffee-accent);
     font-weight: bold;
     display: flex;
     align-items: center;
@@ -74,11 +111,11 @@
     transition: all 0.2s;
     cursor: pointer;
     padding: 0;
+    font-size: 1.2rem;
 }
 
 .btn-quantity:hover:not(:disabled) {
-    border-color: var(--coffee-accent);
-    background-color: var(--coffee-accent);
+    background-color: #3e2b22;
     color: #fff;
 }
 
@@ -87,23 +124,20 @@
     cursor: not-allowed;
 }
 
-/* Input numérico limpio */
+/* Input numérico */
 .quantity-input {
     border: none;
     text-align: center;
     width: 50px;
     font-weight: bold;
     font-size: 1.1rem;
-    color: var(--coffee-dark);
+    color: #fff;
     background: transparent;
     outline: none;
-    
-    /* --- SOLUCIÓN A LA BARRITA AMARILLA --- */
-    appearance: textfield; /* Propiedad estándar primero */
-    -moz-appearance: textfield; /* Propiedad Firefox después */
+    appearance: textfield; 
+    -moz-appearance: textfield; 
 }
 
-/* Ocultar flechas en Chrome, Safari, Edge, Opera */
 .quantity-input::-webkit-outer-spin-button,
 .quantity-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -136,7 +170,7 @@
   line-height: 1.6;
 }
 
-/* Notificación Flotante (Arriba a la derecha) */
+/* Notificación Flotante */
 .aesthetic-toast {
   position: fixed;
   top: 90px;

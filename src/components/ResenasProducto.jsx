@@ -9,12 +9,10 @@ const ResenasProducto = ({ idProducto }) => {
   const [resenas, setResenas] = useState([]);
   const [promedio, setPromedio] = useState(0);
   
-  // Estados de verificación
   const [puedeOpinar, setPuedeOpinar] = useState(false);
   const [yaOpino, setYaOpino] = useState(false);
   const [verificando, setVerificando] = useState(false);
 
-  // Formulario
   const [rating, setRating] = useState(5);
   const [titulo, setTitulo] = useState('');
   const [comentario, setComentario] = useState('');
@@ -22,7 +20,6 @@ const ResenasProducto = ({ idProducto }) => {
   const [previews, setPreviews] = useState([]);
   const [enviando, setEnviando] = useState(false);
 
-  // Modal para ver imagen grande
   const [imgModal, setImgModal] = useState(null);
 
   useEffect(() => {
@@ -109,7 +106,12 @@ const ResenasProducto = ({ idProducto }) => {
     } catch (err) { alert(err.message); } finally { setEnviando(false); }
   };
 
-  const renderEstrellas = (valor) => [...Array(5)].map((_, i) => <span key={i} style={{ color: valor >= i + 1 ? '#ffc107' : '#e4e5e9' }}>{valor >= i + 1 ? <FaStar /> : <FaRegStar />}</span>);
+  // CAMBIO: Color negro (#1a1a1a) para las estrellas
+  const renderEstrellas = (valor) => [...Array(5)].map((_, i) => (
+    <span key={i} style={{ color: valor >= i + 1 ? '#1a1a1a' : '#ccc' }}>
+      {valor >= i + 1 ? <FaStar /> : <FaRegStar />}
+    </span>
+  ));
 
   return (
     <div className="mt-5 pt-4 border-top">
@@ -117,7 +119,11 @@ const ResenasProducto = ({ idProducto }) => {
 
       <div className="d-flex align-items-center mb-4 gap-3">
         <div className="display-4 fw-bold text-coffee-dark">{promedio}</div>
-        <div><div className="text-warning">{renderEstrellas(Math.round(promedio))}</div><small className="text-muted">{resenas.length} reseñas</small></div>
+        <div>
+          {/* Estrellas negras en el resumen */}
+          <div className="fs-5">{renderEstrellas(Math.round(promedio))}</div>
+          <small className="text-muted">{resenas.length} reseñas</small>
+        </div>
       </div>
 
       {user && !yaOpino && puedeOpinar && (
@@ -126,7 +132,17 @@ const ResenasProducto = ({ idProducto }) => {
             <h6 className="fw-bold mb-3">Escribe tu opinión</h6>
             <Form onSubmit={enviarResena}>
               <div className="mb-3">
-                {[1, 2, 3, 4, 5].map((star) => (<span key={star} onClick={() => setRating(star)} style={{ cursor: 'pointer', fontSize: '1.5rem', color: star <= rating ? '#ffc107' : '#ddd' }} className="me-1">★</span>))}
+                {/* Estrellas negras en el formulario */}
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <span 
+                    key={star} 
+                    onClick={() => setRating(star)} 
+                    style={{ cursor: 'pointer', fontSize: '1.5rem', color: star <= rating ? '#1a1a1a' : '#ccc' }} 
+                    className="me-1"
+                  >
+                    ★
+                  </span>
+                ))}
               </div>
               <Form.Control type="text" placeholder="Título de la reseña" className="mb-3" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
               <Form.Control as="textarea" rows={3} placeholder="¿Qué te pareció el producto?" value={comentario} onChange={(e) => setComentario(e.target.value)} required className="mb-3"/>
@@ -159,7 +175,8 @@ const ResenasProducto = ({ idProducto }) => {
               </div>
               <small className="text-muted">{new Date(r.fecha).toLocaleDateString()}</small>
             </div>
-            <div className="my-1 text-warning small">{renderEstrellas(r.calificacion)}</div>
+            {/* Estrellas negras en lista */}
+            <div className="my-1 fs-6">{renderEstrellas(r.calificacion)}</div>
             {r.titulo && <h6 className="fw-bold mt-2">{r.titulo}</h6>}
             <p className="text-muted mb-2 small">{r.comentario}</p>
             {r.imagenes && r.imagenes.length > 0 && (

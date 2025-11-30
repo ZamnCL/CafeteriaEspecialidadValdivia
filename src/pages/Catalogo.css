@@ -1,47 +1,47 @@
-/* Contenedor del Carrusel de Píldoras */
+/* --- src/pages/Catalogo.css --- */
+
+/* Wrapper para posicionar las flechas relativas a la lista */
+.category-carousel-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 60px; /* Más espacio para las flechas */
+  max-width: 1100px; 
+  margin: 0 auto;
+}
+
 .category-scroll-container {
   display: flex;
-  flex-wrap: nowrap; /* Evita que bajen a otra línea */
-  overflow-x: auto;  /* Permite scroll horizontal */
-  gap: 10px;
-  padding-bottom: 15px; /* Espacio para la barra de scroll */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 15px; /* Más separación entre botones */
+  padding: 10px 20px; /* Padding interno para que el fade no tape el inicio */
   justify-content: flex-start;
+  scroll-behavior: smooth;
+  width: 100%;
   
-  /* Scroll suave para móviles */
-  -webkit-overflow-scrolling: touch; 
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: var(--coffee-accent) transparent;
+  /* --- MAGIA VISUAL: MÁSCARA DE DESVANECIMIENTO --- */
+  /* Esto crea el efecto de que los botones se desvanecen en los bordes */
+  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+
+  /* --- MAGIA FUNCIONAL: SCROLL SNAP --- */
+  /* Esto obliga al scroll a detenerse siempre al inicio de un botón, nunca a la mitad */
+  scroll-snap-type: x mandatory; 
+  
+  /* Ocultar barra de scroll */
+  -ms-overflow-style: none;  
+  scrollbar-width: none;  
 }
 
-/* Centrar si son pocos elementos */
-@media (min-width: 768px) {
-  .category-scroll-container {
-    justify-content: center;
-  }
-  /* Si hay muchos elementos y se desborda, alinear al inicio para poder scrollear */
-  .category-scroll-container:has(> :nth-child(7)) {
-     justify-content: flex-start;
-  }
-}
-
-/* Estilo de la Barra de Scroll (Chrome/Safari/Edge) */
 .category-scroll-container::-webkit-scrollbar {
-  height: 6px;
-}
-
-.category-scroll-container::-webkit-scrollbar-track {
-  background: rgba(0,0,0,0.05);
-  border-radius: 10px;
-}
-
-.category-scroll-container::-webkit-scrollbar-thumb {
-  background-color: var(--coffee-accent);
-  border-radius: 10px;
+  display: none;
 }
 
 /* Estilo de los Botones (Pills) */
 .category-pill {
-  white-space: nowrap; /* Texto en una sola línea */
+  white-space: nowrap;
   background: transparent;
   border: 1px solid var(--coffee-dark);
   color: var(--coffee-dark);
@@ -50,7 +50,11 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  flex-shrink: 0; /* Evita que se aplasten */
+  flex-shrink: 0;
+  user-select: none;
+  
+  /* Alineación del Snap */
+  scroll-snap-align: center; /* Se alinean al centro al soltar */
 }
 
 .category-pill:hover {
@@ -62,4 +66,55 @@
   color: #fff;
   border-color: var(--coffee-dark);
   box-shadow: 0 4px 10px rgba(92, 61, 46, 0.3);
+}
+
+/* Botones de Navegación */
+.carousel-nav-btn {
+  background-color: #fff;
+  border: 1px solid var(--coffee-dark);
+  color: var(--coffee-dark);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: absolute;
+  z-index: 10;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.carousel-nav-btn:hover {
+  background-color: var(--coffee-dark);
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.carousel-nav-btn:active {
+  transform: scale(0.95);
+}
+
+.carousel-nav-btn.left {
+  left: 5px; /* Un poco más pegado al borde */
+}
+
+.carousel-nav-btn.right {
+  right: 5px;
+}
+
+@media (max-width: 768px) {
+  .category-carousel-wrapper {
+    padding: 0;
+  }
+  .carousel-nav-btn {
+    display: none;
+  }
+  /* En móviles quitamos la máscara para aprovechar todo el ancho */
+  .category-scroll-container {
+    mask-image: none;
+    -webkit-mask-image: none;
+    padding: 10px 5px;
+  }
 }

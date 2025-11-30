@@ -119,3 +119,45 @@ h1, h2, h3, h4, h5, h6 {
   color: #f5f1ec !important;
   border-color: var(--coffee-dark);
 }
+.btn-coffee-pill {
+  background-color: var(--coffee-accent);
+  color: #1a1a1a;
+  border: 1px solid var(--coffee-accent);
+  border-radius: 50px;
+  padding: 10px 30px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Estado Hover (Pasar mouse) */
+.btn-coffee-pill:hover {
+  background-color: #a08468 !important; /* Café más oscuro */
+  border-color: #a08468 !important;
+  color: #1a1a1a !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(196, 164, 132, 0.4);
+}
+
+/* Estado Active/Focus (Al hacer clic) - ELIMINA EL AZUL */
+.btn-coffee-pill:active,
+.btn-coffee-pill:focus,
+.btn-coffee-pill:focus-visible {
+  background-color: #8c735a !important; /* Café aún más oscuro para feedback visual */
+  border-color: #8c735a !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 0.25rem rgba(196, 164, 132, 0.5) !important; /* Anillo de enfoque dorado/café */
+  outline: none !important;
+}
+
+/* Para asegurar que no pelee con la clase btn-primary de Bootstrap */
+.btn.btn-coffee-pill {
+    --bs-btn-active-bg: #8c735a;
+    --bs-btn-active-border-color: #8c735a;
+    --bs-btn-focus-shadow-rgb: 196, 164, 132;
+}

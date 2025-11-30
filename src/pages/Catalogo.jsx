@@ -1,22 +1,29 @@
-import { useState, useEffect } from 'react';
-import { Container, Row, Col, Spinner, Nav, Form, InputGroup } from 'react-bootstrap';
+import { useState, useEffect, useRef } from 'react';
+import { Container, Row, Col, Spinner, Form, InputGroup } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
 import ProductCard from '../components/ProductCard';
-import { FaSearch, FaCheckCircle } from 'react-icons/fa'; // Importamos icono para el toast
+import { FaSearch, FaCheckCircle, FaChevronLeft, FaChevronRight } from 'react-icons/fa'; // Iconos flechas
+import { useSearchParams } from 'react-router-dom';
 import './Catalogo.css';
 
 function Catalogo() {
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // URL Params
+  const [searchParams] = useSearchParams();
+  const catParam = searchParams.get('categoria');
+
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
 
-  // Estado para la notificación
   const [showToast, setShowToast] = useState(false);
   const [toastProduct, setToastProduct] = useState('');
 
-  // Helper para identificar preparaciones
+  // Referencia para el contenedor del scroll
+  const scrollContainerRef = useRef(null);
+
   const esPreparacion = (nombreCat) => {
     const n = nombreCat.toLowerCase();
     return n.includes('preparación') || n.includes('filtrado') || n.includes('bebida') || n.includes('barra');
@@ -25,6 +32,14 @@ function Catalogo() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (catParam) {
+      setFiltroCategoria(parseInt(catParam));
+    } else {
+      setFiltroCategoria('todos');
+    }
+  }, [catParam]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -56,6 +71,23 @@ function Catalogo() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
+  // --- LÓGICA DE SCROLL (Mover 2 categorías aprox) ---
+  const scroll = (direction) => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      // ~300px es un buen estimado para 2 botones de categoría
+      const scrollAmount = 300; 
+      const targetScroll = direction === 'left' 
+        ? container.scrollLeft - scrollAmount 
+        : container.scrollLeft + scrollAmount;
+      
+      container.scrollTo({
+        left: targetScroll,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const productosFiltrados = productos.filter(p => {
     const cumpleCategoria = filtroCategoria === 'todos' || p.id_categoria == filtroCategoria;
     const cumpleBusqueda = p.nombre.toLowerCase().includes(busqueda.toLowerCase());
@@ -81,11 +113,22 @@ function Catalogo() {
           </Col>
         </Row>
 
-        <div className="category-scroll-container mb-5 justify-content-center">
-          <button className={`category-pill ${filtroCategoria === 'todos' ? 'active' : ''}`} onClick={() => setFiltroCategoria('todos')}>Todos</button>
-          {categorias.map(cat => (
-            <button key={cat.id_categoria} className={`category-pill ${filtroCategoria == cat.id_categoria ? 'active' : ''}`} onClick={() => setFiltroCategoria(cat.id_categoria)}>{cat.nombre}</button>
-          ))}
+        {/* --- CARRUSEL DE CATEGORÍAS --- */}
+        <div className="category-carousel-wrapper">
+          <button className="carousel-nav-btn left" onClick={() => scroll('left')}>
+            <FaChevronLeft />
+          </button>
+
+          <div className="category-scroll-container" ref={scrollContainerRef}>
+            <button className={`category-pill ${filtroCategoria === 'todos' ? 'active' : ''}`} onClick={() => setFiltroCategoria('todos')}>Todos</button>
+            {categorias.map(cat => (
+              <button key={cat.id_categoria} className={`category-pill ${filtroCategoria == cat.id_categoria ? 'active' : ''}`} onClick={() => setFiltroCategoria(cat.id_categoria)}>{cat.nombre}</button>
+            ))}
+          </div>
+
+          <button className="carousel-nav-btn right" onClick={() => scroll('right')}>
+            <FaChevronRight />
+          </button>
         </div>
       </div>
 
@@ -95,14 +138,13 @@ function Catalogo() {
             <ProductCard 
               producto={prod} 
               isReserva={false} 
-              onShowToast={handleShowToast} // Pasamos la función
+              onShowToast={handleShowToast} 
             />
           </Col>
         ))}
         {productosFiltrados.length === 0 && <div className="text-center py-5 text-muted"><h4>No encontramos productos.</h4></div>}
       </Row>
 
-      {/* NOTIFICACIÓN FLOTANTE */}
       <div className={`aesthetic-toast ${showToast ? 'show' : ''}`}>
         <FaCheckCircle className="text-success fs-4" />
         <div>
