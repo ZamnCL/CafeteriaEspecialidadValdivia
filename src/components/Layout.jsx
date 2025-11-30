@@ -20,7 +20,6 @@ function Layout() {
   const [showTienda, setShowTienda] = useState(false);
   const [showReserva, setShowReserva] = useState(false);
 
-  // Referencia para guardar los timers y evitar cierres bruscos dentro del área
   const timerRef = useRef({});
 
   useEffect(() => {
@@ -51,6 +50,7 @@ function Layout() {
     }
   };
 
+  // ESTA ES LA FUNCIÓN CORRECTA
   const irACategoria = (ruta, idCat) => {
     setShowTienda(false);
     setShowReserva(false);
@@ -60,16 +60,12 @@ function Layout() {
     navigate(`${ruta}?categoria=${idCat}`);
   };
 
-  // --- LÓGICA DE HOVER MEJORADA (ÁREA + EXCLUSIÓN MUTUA) ---
   const handleMouseEnter = (menu) => {
-    // 1. Limpiar timer de este menú si existe (el usuario volvió a entrar al área segura)
     if (timerRef.current[menu]) {
       clearTimeout(timerRef.current[menu]);
       delete timerRef.current[menu];
     }
     
-    // 2. ABRIR el menú actual y CERRAR EL OTRO inmediatamente.
-    // Esto soluciona que se solapen si mueves el mouse rápido de "Tienda" a "Reserva".
     if (menu === 'tienda') {
         setShowTienda(true);
         setShowReserva(false);
@@ -81,8 +77,6 @@ function Layout() {
   };
 
   const handleMouseLeave = (menu) => {
-    // Timer muy breve (100ms) solo para cubrir el pequeño "gap" físico entre botón y menú.
-    // Si sales del área total, se cierra casi de inmediato, sintiéndose ágil.
     timerRef.current[menu] = setTimeout(() => {
       if (menu === 'tienda') setShowTienda(false);
       if (menu === 'reserva') setShowReserva(false);
@@ -91,41 +85,7 @@ function Layout() {
 
   return (
     <div className="d-flex flex-column min-vh-100">
-      <style>{`
-        /* Centrar y posicionar el menú debajo del botón */
-        .centered-dropdown .dropdown-menu {
-            left: 50% !important;
-            right: auto !important;
-            transform: translateX(-50%) !important;
-            margin-top: 0px !important; /* Pegado al botón para minimizar el gap */
-            border-radius: 12px;
-            border: 1px solid rgba(0,0,0,0.05);
-            box-shadow: 0 10px 25px rgba(92, 61, 46, 0.15);
-            text-align: center; /* Centrar texto de los items */
-            min-width: 200px;
-            padding: 0.5rem 0;
-        }
-
-        /* Estilo de los items del menú */
-        .centered-dropdown .dropdown-item {
-            text-align: center;
-            font-weight: 500;
-            color: #555;
-            padding: 10px 15px;
-            transition: background-color 0.2s, color 0.2s;
-        }
-        
-        .centered-dropdown .dropdown-item:hover {
-            background-color: rgba(196, 164, 132, 0.1);
-            color: var(--coffee-dark);
-        }
-        
-        /* Ajuste alineación flecha */
-        .nav-link.dropdown-toggle::after {
-            vertical-align: middle;
-        }
-      `}</style>
-
+      
       {/* NAVBAR */}
       <Navbar expand="lg" fixed="top" className="navbar-custom">
         <Container fluid className="px-4 px-lg-5">
@@ -149,6 +109,7 @@ function Layout() {
                 onClick={() => navigate('/catalogo')}
                 className="centered-dropdown"
               >
+                {/* CORREGIDO: irACrear -> irACategoria */}
                 <NavDropdown.Item onClick={() => irACategoria('/catalogo', '')}>Ver Todo</NavDropdown.Item>
                 <NavDropdown.Divider />
                 {catsTienda.map(c => (
@@ -171,6 +132,7 @@ function Layout() {
                 onClick={() => navigate('/reserva')}
                 className="centered-dropdown"
               >
+                {/* CORREGIDO: irACrear -> irACategoria */}
                 <NavDropdown.Item onClick={() => irACategoria('/reserva', '')}>Ver Barra Completa</NavDropdown.Item>
                 <NavDropdown.Divider />
                 {catsReserva.map(c => (

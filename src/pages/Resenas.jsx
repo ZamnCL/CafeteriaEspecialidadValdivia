@@ -25,7 +25,7 @@ function Resenas() {
       if (error) throw error;
       setResenas(data || []);
     } catch (error) {
-      console.error("Error cargando reseñas:", error);
+      // Manejo de error silencioso
     } finally {
       setLoading(false);
     }
@@ -54,9 +54,8 @@ function Resenas() {
       <style>{`
         .resenas-header-title { color: #2C2C2C; font-weight: 800; letter-spacing: -0.5px; }
         
-        /* Buscador Oscuro (Estilo Captura) */
         .search-bar-container { 
-            background: #2C2C2C; /* Fondo oscuro */
+            background: #2C2C2C;
             border-radius: 8px; 
             padding: 8px 16px; 
             border: 1px solid #444; 
@@ -67,13 +66,12 @@ function Resenas() {
             background: transparent !important; 
             border: none !important; 
             font-size: 1rem; 
-            color: #ddd !important; /* Texto claro */
+            color: #ddd !important;
             box-shadow: none !important;
         }
         .search-input::placeholder { color: #888; }
         .search-icon { color: #eee; margin-right: 10px; font-size: 1.2rem; }
         
-        /* Tarjeta */
         .review-card { border: none; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); transition: transform 0.2s ease, box-shadow 0.2s ease; background: #fff; }
         .review-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
         .review-user-name { font-weight: 700; color: #333; font-size: 0.95rem; }
@@ -83,13 +81,11 @@ function Resenas() {
         .review-title { font-weight: 700; color: #1F1F1F; margin-top: 10px; margin-bottom: 8px; line-height: 1.3; }
         .review-body { color: #555; font-size: 0.95rem; line-height: 1.6; }
         
-        /* Collage */
         .review-thumb-box { width: 70px; height: 70px; border-radius: 10px; overflow: hidden; cursor: pointer; border: 1px solid #eee; }
         .review-thumb-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
         .review-thumb-box:hover .review-thumb-img { transform: scale(1.1); }
       `}</style>
 
-      {/* Cabecera y Buscador */}
       <div className="text-center mb-5">
         <h2 className="resenas-header-title display-5 mb-4">RESEÑAS DESTACADAS</h2>
         
@@ -109,13 +105,11 @@ function Resenas() {
         </Row>
       </div>
 
-      {/* Grid de Tarjetas */}
       <Row className="g-4">
         {resenasFiltradas.map((r) => (
           <Col key={r.id_resena} md={6} lg={4} className="d-flex align-items-stretch">
             <Card className="review-card h-100 p-4 d-flex flex-column w-100">
               
-              {/* Cabecera Corregida */}
               <div className="d-flex justify-content-between align-items-start mb-3">
                 <div className="d-flex align-items-center gap-2">
                   <FaUserCircle size={32} className="text-secondary opacity-50"/>
@@ -125,7 +119,6 @@ function Resenas() {
                 </div>
                 <div className="review-date">{new Date(r.fecha).toLocaleDateString()}</div>
               </div> 
-              {/* Fin Cabecera */}
 
               <div>
                 <span className="product-tag">
@@ -136,7 +129,9 @@ function Resenas() {
               <div className="mb-2">{renderEstrellas(r.calificacion)}</div>
               
               {r.titulo && <h5 className="review-title">{r.titulo}</h5>}
-              <p className="review-body flex-grow-1">{r.comentario}</p>
+              
+              {/* Uso de div en lugar de p si el contenido es dinámico para evitar advertencias de anidación */}
+              <div className="review-body flex-grow-1">{r.comentario}</div>
 
               {r.imagenes && r.imagenes.length > 0 && (
                 <div className="d-flex gap-2 mt-3 pt-2 border-top">

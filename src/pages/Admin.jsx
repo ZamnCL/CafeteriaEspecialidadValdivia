@@ -83,9 +83,8 @@ function Admin() {
   const irACrear = () => { setProductoAEditar(null); setVista('formulario'); };
   const irAEditar = (prod) => { setProductoAEditar(prod); setVista('formulario'); };
   
-  // --- CORRECCIÓN AQUÍ: Usar Toast en lugar de Alert ---
   const alExitoFormulario = (texto) => { 
-    setToastMsg(texto); // "Producto Creado" o "Producto Modificado"
+    setToastMsg(texto); 
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
     
@@ -220,7 +219,8 @@ function Admin() {
             <Card className="card-admin-dark border-0">
               <Card.Body className="p-4">
                 <div className="d-flex justify-content-between align-items-center mb-4">
-                  <h5 className="mb-0 text-coffee-title text-coffee-accent">Gestión de Blog</h5>
+                  {/* CORRECCIÓN: Título uniforme */}
+                  <h5 className="mb-0 text-coffee-title" style={{ color: 'var(--coffee-accent)' }}>Gestión de Blog</h5>
                   <button className="btn btn-coffee-pill shadow-none d-flex align-items-center gap-2" onClick={irACrearBlog}>
                     <FaPlus /> Nueva Historia
                   </button>
@@ -280,7 +280,8 @@ function Admin() {
         <Tab eventKey="mensajes" title="Mensajes">
           <Card className="card-admin-dark border-0">
             <Card.Body className="p-4">
-              <h5 className="text-coffee-title mb-4">Mensajes de Contacto</h5>
+              {/* CORRECCIÓN: Título uniforme */}
+              <h5 className="text-coffee-title mb-4" style={{ color: 'var(--coffee-accent)' }}>Mensajes de Contacto</h5>
               <Nav variant="pills" className="mb-4 nav-pills-coffee">
                 <Nav.Item><Nav.Link active={filtroMensajes === 'todos'} onClick={() => setFiltroMensajes('todos')}>Todos</Nav.Link></Nav.Item>
                 <Nav.Item><Nav.Link active={filtroMensajes === 'general'} onClick={() => setFiltroMensajes('general')}><FaUser className="me-1"/> General</Nav.Link></Nav.Item>
@@ -352,7 +353,6 @@ function Admin() {
         </Modal.Body>
       </Modal>
 
-      {/* --- NOTIFICACIÓN FLOTANTE UNIFICADA --- */}
       <div className={`aesthetic-toast ${showToast ? 'show' : ''}`}>
         <FaCheckCircle className="text-success fs-4" />
         <div>

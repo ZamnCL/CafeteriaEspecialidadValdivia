@@ -9,22 +9,17 @@ function ProductCarousel({ title, products }) {
 
   if (!products || products.length === 0) return null;
 
-  // --- LÓGICA CIRCULAR INFINITA ---
   const next = () => {
-    // Avanzamos 1, y si nos pasamos del largo, el módulo (%) nos devuelve al principio matemáticamente
     setStartIndex((prev) => (prev + 1) % products.length);
   };
 
   const prev = () => {
-    // Retrocedemos 1, sumamos el largo para evitar negativos, y aplicamos módulo
     setStartIndex((prev) => (prev - 1 + products.length) % products.length);
   };
 
-  // Generamos la lista visible calculando los índices de forma circular
   const getVisibleProducts = () => {
     const visible = [];
     for (let i = 0; i < itemsVisible; i++) {
-      // El operador % asegura que si el índice supera el último elemento, vuelva al 0
       const index = (startIndex + i) % products.length;
       visible.push(products[index]);
     }
@@ -32,8 +27,6 @@ function ProductCarousel({ title, products }) {
   };
 
   const visibleProducts = getVisibleProducts();
-
-  // Si hay menos productos que los espacios visibles, centramos el contenido y ocultamos flechas
   const showControls = products.length > itemsVisible;
 
   return (
@@ -45,8 +38,9 @@ function ProductCarousel({ title, products }) {
       <div className="position-relative px-4">
         <Row className={`g-4 ${!showControls ? 'justify-content-center' : ''}`}>
           {visibleProducts.map((prod, index) => (
-            // Usamos index en la key para evitar conflictos si un mismo producto aparece 2 veces (ej: en arrays pequeños que se repiten)
-            <Col key={`${prod.id_producto}-${index}`} md={4}>
+            // KEY ÚNICA: Usamos el ID del producto + el índice del renderizado visual
+            // Esto es crucial en carruseles circulares donde un producto puede repetirse visualmente
+            <Col key={`${prod.id_producto}-visual-${index}`} md={4}>
               <div className="animate-fade-in">
                 <ProductCard producto={prod} />
               </div>
@@ -54,7 +48,6 @@ function ProductCarousel({ title, products }) {
           ))}
         </Row>
 
-        {/* Controles Flotantes - Solo se muestran si hay suficientes productos para rotar */}
         {showControls && (
           <>
             <Button 

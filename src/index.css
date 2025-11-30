@@ -1,25 +1,32 @@
-/* --- src/index.css --- */
+/* --- src/index.css (COMPLETO Y UNIFICADO) --- */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 :root {
+  /* Paleta de Colores */
   --coffee-black: #1a1a1a;
-  --coffee-dark: #5c3d2e;    /* Café oscuro elegante */
-  --coffee-medium: #6f4e37;
-  --coffee-accent: #c4a484;  /* Dorado suave */
-  --wine-red: #8b4949;       /* Vino tinto para detalles */
-  --off-white: #faf8f5;      /* Crema suave */
-  --beige-gradient: linear-gradient(to bottom, #f2e6d8 0%, #e8dcc8 100%);
+  --coffee-dark: #5c3d2e;    /* Café oscuro principal */
+  --coffee-medium: #6f4e37;  /* Café medio */
+  --coffee-accent: #c4a484;  /* Dorado/Beige */
+  --wine-red: #8b4949;       /* Vino tinto (detalles) */
   
-  --font-main: 'Poppins', sans-serif;
+  /* Fondos */
+  --bg-body: linear-gradient(to bottom, #f2e6d8 0%, #e8dcc8 100%);
+  --bg-white: #ffffff;
+  --bg-off-white: #f8f9fa;
+
+  /* Sombras */
   --shadow-sm: 0 4px 12px rgba(92, 61, 46, 0.15);
-  --shadow-hover: 0 10px 20px rgba(92, 61, 46, 0.2);
+  --shadow-card: 0 10px 25px rgba(92, 61, 46, 0.08);
+  --shadow-hover: 0 20px 40px rgba(92, 61, 46, 0.2);
+
+  /* Fuente */
+  --font-main: 'Poppins', sans-serif;
 }
 
 body {
   font-family: var(--font-main);
-  /* Fondo general beige cálido */
-  background: var(--beige-gradient); 
-  background-attachment: fixed; 
+  background: var(--bg-body);
+  background-attachment: fixed;
   color: var(--coffee-black);
   margin: 0;
   padding: 0;
@@ -33,7 +40,25 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: -0.02em;
 }
 
-/* Botones Personalizados */
+a { text-decoration: none; }
+
+/* =========================================
+   UTILIDADES DE TEXTO Y ANIMACIONES
+   ========================================= */
+.text-coffee { color: var(--coffee-dark) !important; }
+.text-wine { color: var(--wine-red) !important; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeInUp 0.8s ease-out forwards; }
+
+/* =========================================
+   BOTONES GLOBALES
+   ========================================= */
+
+/* Botón Básico */
 .btn-coffee {
   background: linear-gradient(135deg, #7d4e57 0%, #8b4949 100%);
   border: none;
@@ -53,20 +78,7 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--shadow-hover);
 }
 
-/* Utilidades de Texto */
-.text-coffee { color: var(--coffee-dark) !important; }
-.text-wine { color: var(--wine-red) !important; }
-
-/* Animaciones */
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-in { animation: fadeInUp 0.8s ease-out forwards; }
-
-/* --- src/index.css (Añadir al final) --- */
-
-/* BOTÓN PILL SÓLIDO (Como "+ Nuevo Producto") */
+/* Botón Pill Sólido (Anti-Blue Fix) */
 .btn-coffee-pill {
   background-color: var(--coffee-accent);
   color: #1a1a1a;
@@ -84,13 +96,237 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-coffee-pill:hover {
-  background-color: #a08468;
-  border-color: #a08468;
-  color: #1a1a1a;
+  background-color: #a08468 !important;
+  border-color: #a08468 !important;
+  color: #1a1a1a !important;
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(196, 164, 132, 0.4);
 }
 
+.btn-coffee-pill:active,
+.btn-coffee-pill:focus,
+.btn-coffee-pill:focus-visible {
+  background-color: #8c735a !important;
+  border-color: #8c735a !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 0.25rem rgba(196, 164, 132, 0.5) !important;
+  outline: none !important;
+}
+
+/* Fix para Bootstrap Buttons */
+.btn.btn-coffee-pill {
+    --bs-btn-active-bg: #8c735a;
+    --bs-btn-active-border-color: #8c735a;
+    --bs-btn-focus-shadow-rgb: 196, 164, 132;
+}
+
+/* =========================================
+   NAVBAR Y MENÚS (SOLUCIÓN DEFINITIVA)
+   ========================================= */
+.navbar-custom {
+  background: linear-gradient(to bottom, #f2e6d8 0%, #e8dcc8 100%) !important;
+  border-bottom: 2px solid var(--coffee-dark) !important;
+  box-shadow: var(--shadow-sm);
+  padding: 0.8rem 0;
+}
+
+.navbar-brand {
+  font-family: var(--font-main);
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: var(--coffee-dark) !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.nav-link {
+  color: var(--coffee-dark) !important;
+  font-weight: 600;
+  margin: 0 0.5rem;
+  transition: color 0.3s;
+}
+
+.nav-link:hover { color: var(--wine-red) !important; }
+
+/* Dropdown: Caja Contenedora */
+.dropdown-menu {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(92, 61, 46, 0.15) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(92, 61, 46, 0.15) !important;
+  padding: 8px 0 !important;
+  margin-top: 10px !important;
+  min-width: 220px !important;
+}
+
+/* Dropdown: Items de Texto (Igualando Navbar) */
+.dropdown-menu .dropdown-item {
+  font-family: 'Poppins', sans-serif !important;
+  font-weight: 600 !important;      
+  font-size: 1rem !important;       
+  color: #5c3d2e !important;        
+  letter-spacing: 0px !important;   
+  padding: 10px 20px !important;    
+  text-align: center !important;    
+  background-color: transparent !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+/* Dropdown: Hover */
+.dropdown-menu .dropdown-item:hover,
+.dropdown-menu .dropdown-item:focus,
+.dropdown-menu .dropdown-item:active {
+  background-color: rgba(196, 164, 132, 0.15) !important; 
+  color: #8b4949 !important;        
+  font-weight: 700 !important;      
+}
+
+/* Dropdown: Headers y Divisores */
+.dropdown-header {
+  font-family: 'Poppins', sans-serif !important;
+  font-weight: 700 !important;
+  color: #888 !important;
+  text-align: center !important;
+  font-size: 0.75rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  padding-bottom: 10px !important;
+}
+
+.dropdown-divider {
+  border-top: 1px solid rgba(92, 61, 46, 0.1) !important;
+  margin: 6px 0 !important;
+}
+
+/* =========================================
+   HERO SECTION
+   ========================================= */
+.hero-section {
+  position: relative;
+  height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #fff;
+  margin-top: -80px;
+  padding-top: 80px;
+  background-attachment: fixed;
+}
+
+.hero-content h1 {
+  text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+/* =========================================
+   PRODUCT CARDS (Aesthetic)
+   ========================================= */
+.card-aesthetic {
+  border: none !important;
+  border-radius: 20px !important;
+  background: var(--bg-white);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: all 0.4s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-aesthetic:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-hover);
+}
+
+.image-container-square {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-off-white);
+}
+
+.image-container-square img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.6s ease;
+}
+
+.card-aesthetic:hover .image-container-square img {
+  transform: scale(1.08);
+}
+
+.card-body-aesthetic {
+  padding: 1.2rem 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  justify-content: space-between;
+}
+
+.category-tag {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--wine-red);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.product-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2c2c2c;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.price-tag {
+  font-size: 1rem;
+  color: var(--coffee-dark);
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+/* Botones dentro de Card */
+.btn-aesthetic {
+  background-color: #1a1a1a;
+  color: white;
+  border-radius: 50px;
+  padding: 10px 0;
+  width: 100%;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: 1px solid #1a1a1a;
+  transition: background 0.3s;
+}
+
+.btn-aesthetic:hover {
+  background-color: var(--coffee-dark);
+  border-color: var(--coffee-dark);
+}
+
+.btn-aesthetic.outline {
+  background: transparent;
+  color: #1a1a1a;
+}
+
+.btn-aesthetic.outline:hover {
+  background: #1a1a1a;
+  color: white;
+}
+
+/* =========================================
+   FILTROS Y TABS
+   ========================================= */
 .nav-pills-coffee {
   gap: 0.8rem;
   display: flex;
@@ -117,47 +353,59 @@ h1, h2, h3, h4, h5, h6 {
 .nav-pills-coffee .nav-link.active {
   background-color: var(--coffee-dark) !important;
   color: #f5f1ec !important;
-  border-color: var(--coffee-dark);
 }
-.btn-coffee-pill {
-  background-color: var(--coffee-accent);
-  color: #1a1a1a;
-  border: 1px solid var(--coffee-accent);
-  border-radius: 50px;
-  padding: 10px 30px;
-  font-weight: 700;
+
+/* =========================================
+   FOOTER
+   ========================================= */
+.footer-custom {
+  background: linear-gradient(180deg, #2c2c2c 0%, #1a1a1a 100%);
+  color: #f5f1ec;
+  padding: 4rem 0 2rem;
+  margin-top: auto;
+}
+
+.footer-section h4 {
+  color: var(--coffee-accent);
+  font-size: 1.1rem;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  transition: all 0.3s ease;
-  text-decoration: none;
-  display: inline-flex;
+  margin-bottom: 1.2rem;
+}
+
+.footer-section a {
+  color: #999;
+  display: block;
+  margin-bottom: 0.5rem;
+  transition: 0.3s;
+}
+
+.footer-section a:hover {
+  color: #fff;
+  padding-left: 5px;
+}
+
+/* =========================================
+   TOAST FLOTANTE
+   ========================================= */
+.aesthetic-toast {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  background: rgba(26, 26, 26, 0.95);
+  color: white;
+  padding: 15px 25px;
+  border-radius: 12px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+  display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 15px;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateX(120%);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* Estado Hover (Pasar mouse) */
-.btn-coffee-pill:hover {
-  background-color: #a08468 !important; /* Café más oscuro */
-  border-color: #a08468 !important;
-  color: #1a1a1a !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(196, 164, 132, 0.4);
-}
-
-/* Estado Active/Focus (Al hacer clic) - ELIMINA EL AZUL */
-.btn-coffee-pill:active,
-.btn-coffee-pill:focus,
-.btn-coffee-pill:focus-visible {
-  background-color: #8c735a !important; /* Café aún más oscuro para feedback visual */
-  border-color: #8c735a !important;
-  color: #fff !important;
-  box-shadow: 0 0 0 0.25rem rgba(196, 164, 132, 0.5) !important; /* Anillo de enfoque dorado/café */
-  outline: none !important;
-}
-
-/* Para asegurar que no pelee con la clase btn-primary de Bootstrap */
-.btn.btn-coffee-pill {
-    --bs-btn-active-bg: #8c735a;
-    --bs-btn-active-border-color: #8c735a;
-    --bs-btn-focus-shadow-rgb: 196, 164, 132;
+.aesthetic-toast.show {
+  transform: translateX(0);
+  opacity: 1;
 }
