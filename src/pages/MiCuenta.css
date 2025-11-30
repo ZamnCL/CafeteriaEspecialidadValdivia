@@ -216,18 +216,25 @@
   color: var(--beige-claro) !important;
 }
 
-/* --- NUEVOS ESTILOS PARA SEPARADORES DE ORDEN --- */
+/* --- ESTILOS PARA FILAS DE PRODUCTOS Y SEPARADOR --- */
 
-/* Asegurar que las filas de producto NO tengan borde */
+/* Las filas de productos NO tienen borde inferior */
 .miCuenta-table tbody tr.fila-producto td {
   border-bottom: none !important;
   padding-top: 10px !important;
   padding-bottom: 10px !important;
 }
 
-/* Asegurar que la fila de TOTAL tenga el borde separador */
-.miCuenta-table tbody tr.fila-total td {
-  border-bottom: 1px solid var(--beige) !important;
-  padding-bottom: 1.5rem !important; /* Espacio debajo del texto */
-  padding-top: 0.5rem !important;
+/* La primera fila de cada pedido tiene más padding arriba */
+.miCuenta-table tbody tr.fila-producto:first-child td {
+  padding-top: 1.5rem !important;
+}
+
+/* LÍNEA SEPARADORA BEIGE ENTRE PEDIDOS */
+.miCuenta-table tbody tr.fila-separador td {
+  padding: 0 !important;
+  height: 0 !important;
+  border-bottom: 2px solid #C9A97E !important;
+  padding-top: 1rem !important;
+  padding-bottom: 1.5rem !important;
 }

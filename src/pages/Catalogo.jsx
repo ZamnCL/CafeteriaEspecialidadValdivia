@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Spinner, Form, InputGroup } from 'react-bootstrap';
+import { Container, Row, Col, Spinner, Nav, Form, InputGroup } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
 import ProductCard from '../components/ProductCard';
-import { FaSearch } from 'react-icons/fa';
-import './Catalogo.css'; // Asegúrate de crear este archivo o agregar el CSS al final
+import { FaSearch, FaCheckCircle } from 'react-icons/fa'; // Importamos icono para el toast
+import './Catalogo.css';
 
 function Catalogo() {
   const [productos, setProductos] = useState([]);
@@ -12,7 +12,11 @@ function Catalogo() {
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
 
-  // Helper para identificar preparaciones (igual que en admin)
+  // Estado para la notificación
+  const [showToast, setShowToast] = useState(false);
+  const [toastProduct, setToastProduct] = useState('');
+
+  // Helper para identificar preparaciones
   const esPreparacion = (nombreCat) => {
     const n = nombreCat.toLowerCase();
     return n.includes('preparación') || n.includes('filtrado') || n.includes('bebida') || n.includes('barra');
@@ -25,21 +29,16 @@ function Catalogo() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Categorías (Traemos todas)
       const { data: catData } = await supabase.from('categoria').select('*');
-      
-      // Filtramos SOLO las que son productos físicos (NO preparaciones)
       const categoriasTienda = (catData || []).filter(c => !esPreparacion(c.nombre));
       setCategorias(categoriasTienda);
 
-      // 2. Productos
       const { data: prodData } = await supabase
         .from('productos')
         .select(`*, categoria:categoria!productos_id_categoria_fkey (nombre), formatos:formatos!formatos_id_producto_fkey (*)`)
         .eq('estado', 'Publicado')
         .order('id_producto', { ascending: false });
 
-      // Filtramos productos que pertenezcan a las categorías de tienda
       const idsCategoriasTienda = categoriasTienda.map(c => c.id_categoria);
       const productosTienda = (prodData || []).filter(p => idsCategoriasTienda.includes(p.id_categoria));
 
@@ -49,6 +48,12 @@ function Catalogo() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleShowToast = (nombreProducto) => {
+    setToastProduct(nombreProducto);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
   };
 
   const productosFiltrados = productos.filter(p => {
@@ -61,59 +66,50 @@ function Catalogo() {
 
   return (
     <Container className="py-5">
-      {/* HEADER */}
       <div className="text-center mb-5">
-        <h1 className="display-4 fw-bold text-coffee mb-3">Tienda</h1>
-        <p className="lead text-muted">Café en grano, accesorios y más para tu hogar.</p>
+        <h1 className="display-4 fw-bold text-coffee mb-3">Tienda & Catálogo</h1>
+        <p className="lead text-muted">Explora nuestra selección completa de productos.</p>
       </div>
 
-      {/* BARRA DE BÚSQUEDA */}
-      <Row className="justify-content-center mb-4">
-        <Col md={6}>
-          <InputGroup className="shadow-sm rounded-pill overflow-hidden">
-            <InputGroup.Text className="bg-white border-0 ps-3"><FaSearch className="text-muted"/></InputGroup.Text>
-            <Form.Control 
-              placeholder="Buscar producto..." 
-              className="border-0 shadow-none" 
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-            />
-          </InputGroup>
-        </Col>
-      </Row>
+      <div className="mb-5">
+        <Row className="justify-content-center mb-4">
+          <Col md={6}>
+            <InputGroup className="shadow-sm rounded-pill overflow-hidden">
+              <InputGroup.Text className="bg-white border-0 ps-3"><FaSearch className="text-muted"/></InputGroup.Text>
+              <Form.Control placeholder="Buscar producto..." className="border-0 shadow-none" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+            </InputGroup>
+          </Col>
+        </Row>
 
-      {/* CARRUSEL DE CATEGORÍAS (PILLS) */}
-      <div className="category-scroll-container mb-5">
-        <button 
-          className={`category-pill ${filtroCategoria === 'todos' ? 'active' : ''}`}
-          onClick={() => setFiltroCategoria('todos')}
-        >
-          Todos
-        </button>
-        {categorias.map(cat => (
-          <button 
-            key={cat.id_categoria}
-            className={`category-pill ${filtroCategoria == cat.id_categoria ? 'active' : ''}`}
-            onClick={() => setFiltroCategoria(cat.id_categoria)}
-          >
-            {cat.nombre}
-          </button>
-        ))}
+        <div className="category-scroll-container mb-5 justify-content-center">
+          <button className={`category-pill ${filtroCategoria === 'todos' ? 'active' : ''}`} onClick={() => setFiltroCategoria('todos')}>Todos</button>
+          {categorias.map(cat => (
+            <button key={cat.id_categoria} className={`category-pill ${filtroCategoria == cat.id_categoria ? 'active' : ''}`} onClick={() => setFiltroCategoria(cat.id_categoria)}>{cat.nombre}</button>
+          ))}
+        </div>
       </div>
 
-      {/* GRID DE PRODUCTOS */}
       <Row className="g-4">
         {productosFiltrados.map(prod => (
           <Col key={prod.id_producto} sm={6} md={4} lg={3}>
-            <ProductCard producto={prod} />
+            <ProductCard 
+              producto={prod} 
+              isReserva={false} 
+              onShowToast={handleShowToast} // Pasamos la función
+            />
           </Col>
         ))}
-        {productosFiltrados.length === 0 && (
-          <div className="text-center py-5 text-muted">
-            <h4>No encontramos productos con esos filtros.</h4>
-          </div>
-        )}
+        {productosFiltrados.length === 0 && <div className="text-center py-5 text-muted"><h4>No encontramos productos.</h4></div>}
       </Row>
+
+      {/* NOTIFICACIÓN FLOTANTE */}
+      <div className={`aesthetic-toast ${showToast ? 'show' : ''}`}>
+        <FaCheckCircle className="text-success fs-4" />
+        <div>
+          <div className="fw-bold">¡Añadido al carro!</div>
+          <small className="text-white-50">{toastProduct}</small>
+        </div>
+      </div>
     </Container>
   );
 }

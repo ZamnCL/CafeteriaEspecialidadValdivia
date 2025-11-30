@@ -1,20 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Row, Col, Card, Spinner } from 'react-bootstrap';
+import { Row, Col, Card, Spinner, Table, ProgressBar } from 'react-bootstrap';
 import { supabase } from '../../supabase/cliente';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, Legend 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
-import { FaMoneyBillWave, FaShoppingBag, FaChartLine } from 'react-icons/fa';
+import { FaMoneyBillWave, FaShoppingBag, FaChartLine, FaMugHot, FaBoxOpen } from 'react-icons/fa';
 
 const EstadisticasAdmin = () => {
   const [loading, setLoading] = useState(true);
   const [ingresos, setIngresos] = useState([]);
   const [topProductos, setTopProductos] = useState([]);
+  const [topPreparaciones, setTopPreparaciones] = useState([]);
   const [kpis, setKpis] = useState({ ventas_totales: 0, ordenes_totales: 0, ticket_promedio: 0 });
-
-  // Colores para el gráfico de torta
-  const COLORES_PIE = ['#5c3d2e', '#8b4949', '#c4a484', '#6f4e37', '#a08468'];
 
   useEffect(() => {
     cargarDatos();
@@ -24,18 +21,22 @@ const EstadisticasAdmin = () => {
     try {
       setLoading(true);
       
-      // 1. Llamar RPC: Ingresos Mensuales
+      // 1. Ingresos Mensuales (Gráfico de barras se mantiene)
       const { data: dataIngresos } = await supabase.rpc('get_ingresos_mensuales');
       
-      // 2. Llamar RPC: Top Productos
-      const { data: dataTop } = await supabase.rpc('get_top_productos');
-      
-      // 3. Llamar RPC: KPIs Generales
+      // 2. KPIs Generales
       const { data: dataKpis } = await supabase.rpc('get_kpis_generales');
 
+      // 3. Top Productos Físicos (NUEVA FUNCION SQL)
+      const { data: dataTopProds } = await supabase.rpc('get_top_productos_fisicos');
+
+      // 4. Top Preparaciones (NUEVA FUNCION SQL)
+      const { data: dataTopPrep } = await supabase.rpc('get_top_preparaciones');
+
       if (dataIngresos) setIngresos(dataIngresos);
-      if (dataTop) setTopProductos(dataTop);
       if (dataKpis) setKpis(dataKpis);
+      if (dataTopProds) setTopProductos(dataTopProds);
+      if (dataTopPrep) setTopPreparaciones(dataTopPrep);
 
     } catch (error) {
       console.error("Error cargando estadísticas:", error);
@@ -93,9 +94,75 @@ const EstadisticasAdmin = () => {
         </Col>
       </Row>
 
-      <Row>
-        {/* --- GRÁFICO 1: INGRESOS MENSUALES --- */}
-        <Col lg={8} className="mb-4">
+      <Row className="g-4">
+        {/* --- LISTA 1: PRODUCTOS FÍSICOS MÁS VENDIDOS --- */}
+        <Col lg={6}>
+          <Card className="card-admin-dark border-0 h-100">
+            <Card.Body>
+              <div className="d-flex align-items-center mb-4">
+                <FaBoxOpen className="text-coffee-accent me-2" />
+                <h5 className="text-white mb-0">Top Productos (Tienda)</h5>
+              </div>
+              
+              {topProductos.length === 0 ? (
+                <p className="text-muted text-center py-3">Sin datos aún.</p>
+              ) : (
+                <div className="d-flex flex-column gap-3">
+                  {topProductos.map((prod, idx) => (
+                    <div key={idx}>
+                      <div className="d-flex justify-content-between text-white-50 mb-1 small">
+                        <span>{prod.nombre}</span>
+                        <span className="fw-bold text-white">{prod.cantidad} un.</span>
+                      </div>
+                      <ProgressBar 
+                        now={(prod.cantidad / topProductos[0].cantidad) * 100} 
+                        variant="warning" 
+                        style={{height: '6px', backgroundColor: 'rgba(255,255,255,0.1)'}} 
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+
+        {/* --- LISTA 2: PREPARACIONES MÁS VENDIDAS --- */}
+        <Col lg={6}>
+          <Card className="card-admin-dark border-0 h-100">
+            <Card.Body>
+              <div className="d-flex align-items-center mb-4">
+                <FaMugHot className="text-coffee-accent me-2" />
+                <h5 className="text-white mb-0">Top Preparaciones (Barra)</h5>
+              </div>
+
+              {topPreparaciones.length === 0 ? (
+                <p className="text-muted text-center py-3">Sin datos aún.</p>
+              ) : (
+                <div className="d-flex flex-column gap-3">
+                  {topPreparaciones.map((prep, idx) => (
+                    <div key={idx}>
+                      <div className="d-flex justify-content-between text-white-50 mb-1 small">
+                        <span>{prep.nombre}</span>
+                        <span className="fw-bold text-white">{prep.cantidad} un.</span>
+                      </div>
+                      <ProgressBar 
+                        now={(prep.cantidad / topPreparaciones[0].cantidad) * 100} 
+                        variant="info" 
+                        style={{height: '6px', backgroundColor: 'rgba(255,255,255,0.1)'}} 
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* --- GRÁFICO DE BARRAS (INGRESOS) --- */}
+      <Row className="mt-4">
+        <Col lg={12}>
           <Card className="card-admin-dark border-0 h-100">
             <Card.Body>
               <h5 className="text-white mb-4">Ingresos Mensuales</h5>
@@ -116,37 +183,8 @@ const EstadisticasAdmin = () => {
             </Card.Body>
           </Card>
         </Col>
-
-        {/* --- GRÁFICO 2: TOP PRODUCTOS --- */}
-        <Col lg={4} className="mb-4">
-          <Card className="card-admin-dark border-0 h-100">
-            <Card.Body>
-              <h5 className="text-white mb-4">Top 5 Productos</h5>
-              <div style={{ height: '300px', width: '100%' }}>
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie
-                      data={topProductos}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="cantidad"
-                    >
-                      {topProductos.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORES_PIE[index % COLORES_PIE.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{backgroundColor: '#2c2c2c', border: 'none', color: '#fff'}} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
       </Row>
+
     </div>
   );
 };

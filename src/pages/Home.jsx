@@ -11,19 +11,18 @@ function Home() {
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // --- DATOS POR DEFECTO ---
+  // --- DATOS POR DEFECTO CON MAPA SEGURO ---
+  // Usamos este formato ?q=DIRECCION&output=embed que Google siempre permite
   const [infoLocal, setInfoLocal] = useState({
     direccion: 'Av. Pedro Aguirre Cerda 2115, Valdivia',
     telefono: '+56 63 222 3344',
     correo: 'contacto@cafevaldivia.cl',
     horario_atencion: 'Lun - Sáb: 8:30 a 20:00 | Dom: Cerrado',
-    // Enlace del mapa
-    mapa_ubicacion: 'https://maps.google.com/maps?q=INACAP+Valdivia,+Av.+Pedro+Aguirre+Cerda+2115&t=&z=15&ie=UTF8&iwloc=&output=embed'
+    mapa_ubicacion: 'https://maps.google.com/maps?q=Av.+Pedro+Aguirre+Cerda+2115,+Valdivia&t=&z=15&ie=UTF8&iwloc=&output=embed'
   });
 
   const { hash } = useLocation();
 
-  // Scroll automático
   useEffect(() => {
     if (hash) {
       const element = document.getElementById(hash.replace('#', ''));
@@ -35,28 +34,40 @@ function Home() {
     }
   }, [hash]);
 
-  // Carga de datos
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // 1. Productos
         const { data: prodData } = await supabase
           .from('productos')
           .select(`*, categoria:categoria!productos_id_categoria_fkey (id_categoria, nombre), formatos:formatos!formatos_id_producto_fkey (*)`)
           .eq('estado', 'Publicado');
 
-        // 2. Categorías
         const { data: catData } = await supabase.from('categoria').select('*');
-
-        // 3. Info del Local
         const { data: infoData } = await supabase.from('informacionlocal').select('*').single();
 
         setProductos(prodData || []);
         setCategorias(catData || []);
         
-        if (infoData && infoData.mapa_ubicacion) {
-            setInfoLocal(infoData);
+        if (infoData) {
+            let mapaUrl = infoData.mapa_ubicacion;
+            
+            // 1. Si viene con <iframe>, sacamos solo el link
+            if (mapaUrl && mapaUrl.includes('<iframe')) {
+                const match = mapaUrl.match(/src="([^"]+)"/);
+                if (match && match[1]) mapaUrl = match[1];
+            }
+
+            // 2. Validación de Seguridad:
+            // Si el link de la base de datos NO tiene "embed", Google lo bloqueará.
+            // En ese caso, forzamos el link por defecto que sabemos que funciona.
+            const esLinkSeguro = mapaUrl && (mapaUrl.includes('embed') || mapaUrl.includes('output=embed'));
+
+            setInfoLocal(prev => ({
+                ...prev,
+                ...infoData,
+                mapa_ubicacion: esLinkSeguro ? mapaUrl : prev.mapa_ubicacion
+            }));
         }
 
       } catch (err) {
@@ -77,7 +88,7 @@ function Home() {
 
   return (
     <>
-      {/* 1. HERO SECTION */}
+      {/* HERO SECTION */}
       <section className="hero-section" style={{ 
         backgroundImage: `linear-gradient(rgba(44, 24, 16, 0.7), rgba(44, 24, 16, 0.5)), url(${heroBackground})`,
         backgroundSize: 'cover',
@@ -99,7 +110,7 @@ function Home() {
         </div>
       </section>
 
-      {/* 2. PRODUCTOS DESTACADOS */}
+      {/* PRODUCTOS DESTACADOS */}
       <Container fluid="md" className="py-5">
         <div className="text-center mb-5">
           <span className="text-uppercase fw-bold" style={{color: 'var(--coffee-light)', letterSpacing: '2px'}}>Nuestros Granos</span>
@@ -116,7 +127,7 @@ function Home() {
         })}
       </Container>
 
-      {/* 3. HISTORIA Y PROCESO */}
+      {/* HISTORIA Y PROCESO */}
       <section className="py-5">
         <Container>
           <Row className="align-items-center justify-content-center mb-5">
@@ -194,7 +205,7 @@ function Home() {
         </Container>
       </section>
 
-      {/* 4. SECCIÓN VISÍTANOS (FONDO TRANSPARENTE) */}
+      {/* 4. SECCIÓN VISÍTANOS */}
       <section id="visitanos" className="py-5">
         <Container>
           <div className="text-center mb-5">
@@ -204,50 +215,49 @@ function Home() {
 
           <Card className="border-0 shadow-lg overflow-hidden rounded-4">
             <Row className="g-0">
-              {/* Lado Izquierdo: Información */}
               <Col lg={4} className="bg-white p-5 d-flex flex-column justify-content-center">
                 <h4 className="fw-bold mb-4 text-coffee-dark">Información de Contacto</h4>
                 
                 <div className="mb-4">
-                  <div className="d-flex align-items-center text-warning mb-2 h5">
-                    <FaMapMarkerAlt className="me-3" /> Ubicación
+                  <div className="d-flex align-items-center text-dark mb-2 h5">
+                    <FaMapMarkerAlt className="me-3 text-warning" /> Ubicación
                   </div>
                   <p className="text-muted ms-4 mb-0">{infoLocal.direccion}</p>
                 </div>
 
                 <div className="mb-4">
-                  <div className="d-flex align-items-center text-warning mb-2 h5">
-                    <FaClock className="me-3" /> Horario de Atención
+                  <div className="d-flex align-items-center text-dark mb-2 h5">
+                    <FaClock className="me-3 text-warning" /> Horario de Atención
                   </div>
                   <p className="text-muted ms-4 mb-0">{infoLocal.horario_atencion}</p>
                 </div>
 
                 <div className="mb-4">
-                  <div className="d-flex align-items-center text-warning mb-2 h5">
-                    <FaPhone className="me-3" /> Teléfono
+                  <div className="d-flex align-items-center text-dark mb-2 h5">
+                    <FaPhone className="me-3 text-warning" /> Teléfono
                   </div>
                   <p className="text-muted ms-4 mb-0">{infoLocal.telefono}</p>
                 </div>
 
                 <div>
-                  <div className="d-flex align-items-center text-warning mb-2 h5">
-                    <FaEnvelope className="me-3" /> Correo
+                  <div className="d-flex align-items-center text-dark mb-2 h5">
+                    <FaEnvelope className="me-3 text-warning" /> Correo
                   </div>
                   <p className="text-muted ms-4 mb-0">{infoLocal.correo}</p>
                 </div>
               </Col>
 
-              {/* Lado Derecho: Mapa */}
               <Col lg={8}>
-                <div style={{ minHeight: '450px', height: '100%' }}>
+                <div style={{ width: '100%', height: '100%', minHeight: '450px' }}>
                   <iframe 
                     src={infoLocal.mapa_ubicacion} 
                     width="100%" 
                     height="100%" 
                     style={{ border: 0, minHeight: '450px' }} 
                     allowFullScreen="" 
-                    loading="lazy"
-                    title="Ubicación Cafetería"
+                    loading="lazy" 
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Mapa Ubicación"
                   ></iframe>
                 </div>
               </Col>

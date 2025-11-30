@@ -7,42 +7,92 @@ function CartItem({ item }) {
   const { removeFromCart, updateQuantity } = useCart();
 
   const handleIncrement = () => updateQuantity(producto.id_producto, formato.id_formato, cantidad + 1, reserva);
-  const handleDecrement = () => { if (cantidad > 1) updateQuantity(producto.id_producto, formato.id_formato, cantidad - 1, reserva); };
+  
+  // --- LÓGICA CORREGIDA: ELIMINAR SI ES 1 ---
+  const handleDecrement = () => { 
+    if (cantidad > 1) {
+        updateQuantity(producto.id_producto, formato.id_formato, cantidad - 1, reserva);
+    } else {
+        // Si la cantidad es 1 y presiona menos, se elimina
+        handleRemove();
+    }
+  };
+  
   const handleRemove = () => removeFromCart(producto.id_producto, formato.id_formato, reserva);
 
   return (
-    <div className="d-flex align-items-center justify-content-between border-bottom py-3">
-      <div className="d-flex align-items-center" style={{ gap: '1rem' }}>
-        <div style={{ width: '70px', height: '70px', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#eee', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {producto.imagen ? <img src={producto.imagen} alt={producto.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{fontSize:'0.6rem'}}>Sin img</span>}
+    // align-items-center para centrar verticalmente todo
+    <div className="d-flex align-items-center justify-content-between py-4 px-3 border-bottom">
+      
+      {/* Lado Izquierdo: Imagen e Info */}
+      <div className="d-flex align-items-center" style={{ gap: '1.5rem' }}>
+        <div style={{ width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f8f9fa', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #eee' }}>
+          {producto.imagen ? (
+            <img src={producto.imagen} alt={producto.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <span style={{fontSize:'0.7rem', color: '#999'}}>Sin img</span>
+          )}
         </div>
         
         <div>
-          <h6 className="mb-0 fw-bold">{producto.nombre}</h6>
+          <h6 className="mb-1 fw-bold text-coffee-dark" style={{fontSize: '1.1rem'}}>{producto.nombre}</h6>
           <div className="d-flex flex-column">
-            <small className="text-muted">{formato.nombre} - ${formato.precio.toLocaleString()}</small>
+            {/* PRECIO UNITARIO CON PUNTOS */}
+            <small className="text-muted mb-1">
+              {formato.nombre} — ${formato.precio.toLocaleString('es-CL')} c/u
+            </small>
             {reserva && (
-              <Badge bg="warning" text="dark" className="mt-1 d-inline-flex align-items-center" style={{width: 'fit-content'}}>
+              <Badge bg="warning" text="dark" className="d-inline-flex align-items-center border border-light shadow-sm" style={{width: 'fit-content', fontSize: '0.7rem'}}>
                 <FaClock size={10} className="me-1"/>
-                {reserva.date.split('-').slice(1).reverse().join('/')} - {reserva.time}
+                Retiro: {reserva.time}
               </Badge>
             )}
           </div>
         </div>
       </div>
 
-      <div className="d-flex align-items-center gap-2">
-        <Button variant="outline-secondary" size="sm" onClick={handleDecrement}>-</Button>
-        <span style={{ width: '20px', textAlign: 'center' }}>{cantidad}</span>
-        <Button variant="outline-secondary" size="sm" onClick={handleIncrement}>+</Button>
+      {/* Centro: Selector de Cantidad (Estilo Cuadrado Limpio) */}
+      <div className="d-flex align-items-center">
+        <div className="d-flex align-items-center border rounded" style={{backgroundColor: '#fff'}}>
+          <Button 
+            variant="link" 
+            className="text-dark text-decoration-none px-3 fw-bold" 
+            onClick={handleDecrement}
+            style={{fontSize: '1.2rem', lineHeight: '1'}}
+          >
+            -
+          </Button>
+          <span className="fw-bold text-dark px-2" style={{minWidth: '30px', textAlign: 'center'}}>
+            {cantidad}
+          </span>
+          <Button 
+            variant="link" 
+            className="text-dark text-decoration-none px-3 fw-bold" 
+            onClick={handleIncrement}
+            style={{fontSize: '1.2rem', lineHeight: '1'}}
+          >
+            +
+          </Button>
+        </div>
       </div>
 
-      <div className="text-end">
-        <div className="fw-bold mb-1">${(formato.precio * cantidad).toLocaleString()}</div>
-        <Button variant="link" className="text-danger p-0 text-decoration-none" size="sm" onClick={handleRemove}>
-          <FaTrash />
+      {/* Lado Derecho: Precio Total y Eliminar */}
+      <div className="text-end" style={{minWidth: '100px'}}>
+        {/* PRECIO TOTAL ITEM CON PUNTOS */}
+        <div className="fw-bold mb-2 fs-5 text-coffee-accent">
+          ${(formato.precio * cantidad).toLocaleString('es-CL')}
+        </div>
+        <Button 
+            variant="outline-danger" 
+            size="sm" 
+            className="border-0 p-1" 
+            onClick={handleRemove}
+            title="Eliminar producto"
+        >
+          <FaTrash size={16}/>
         </Button>
       </div>
+
     </div>
   );
 }

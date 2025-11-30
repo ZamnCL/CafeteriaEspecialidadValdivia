@@ -1,17 +1,50 @@
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button, Alert, Spinner, ListGroup } from 'react-bootstrap';
+import { Container, Row, Col, Card, Form, Button, Alert, Spinner, ListGroup, Badge } from 'react-bootstrap';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabase/cliente';
 import { useNavigate } from 'react-router-dom';
 import emailjs from '@emailjs/browser';
-import { FaTruck, FaStore } from 'react-icons/fa';
+import { FaTruck, FaStore, FaClock, FaInfoCircle } from 'react-icons/fa';
 
 const REGIONES_CHILE = [
   "Arica y Parinacota", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo", 
   "Valparaíso", "Metropolitana", "O'Higgins", "Maule", "Ñuble", "Biobío", 
   "La Araucanía", "Los Ríos", "Los Lagos", "Aysén", "Magallanes"
 ];
+
+// --- FUNCIÓN DE VALIDACIÓN DE RUT (Módulo 11) ---
+const validarRut = (rut) => {
+  if (!rut) return false;
+  
+  // 1. Limpiar guiones y puntos, y dejar en minúscula
+  const valor = rut.replace(/[^0-9kK]/g, '').toLowerCase();
+  
+  // 2. Validar largo mínimo (al menos 1 millón: 7 dígitos + dv = 8 caracteres)
+  if (valor.length < 8 || valor.length > 9) return false;
+
+  // 3. Separar cuerpo y dígito verificador
+  const cuerpo = valor.slice(0, -1);
+  const dv = valor.slice(-1);
+
+  // 4. Validar que el cuerpo sean solo números
+  if (!/^[0-9]+$/.test(cuerpo)) return false;
+
+  // 5. Calcular Dígito Verificador (Módulo 11)
+  let suma = 0;
+  let multiplo = 2;
+
+  for (let i = cuerpo.length - 1; i >= 0; i--) {
+    suma += parseInt(cuerpo.charAt(i)) * multiplo;
+    if (multiplo < 7) multiplo += 1; else multiplo = 2;
+  }
+
+  const dvEsperado = 11 - (suma % 11);
+  const dvFinal = (dvEsperado === 11) ? '0' : (dvEsperado === 10) ? 'k' : dvEsperado.toString();
+
+  // 6. Comparar
+  return dv === dvFinal;
+};
 
 function Checkout() {
   const { cart, getCartTotal, clearCart } = useCart();
@@ -27,6 +60,12 @@ function Checkout() {
     rut: '', email: '', direccion: '', ciudad: '', region: '', telefono: ''
   });
 
+  const tienePreparaciones = cart.some(item => item.reserva);
+
+  useEffect(() => {
+    if (tienePreparaciones) { setTipoEntrega('retiro'); }
+  }, [tienePreparaciones]);
+
   useEffect(() => {
     if (!authLoading && !user) { alert("Debes iniciar sesión."); navigate('/login'); }
   }, [user, authLoading, navigate]);
@@ -41,21 +80,38 @@ function Checkout() {
   if (cart.length === 0) return <Container className="mt-5 text-center"><h2>El carrito está vacío</h2></Container>;
 
   const handleFileChange = (e) => { if (e.target.files && e.target.files[0]) setFile(e.target.files[0]); };
+  
+  // Manejador genérico para otros inputs
   const handleInputChange = (e) => { setDatosEnvio({ ...datosEnvio, [e.target.name]: e.target.value }); };
 
-  const enviarNotificacionCorreo = (ordenId) => {
-    const serviceID = 'service_94ynerp'; const templateID = 'template_feryfg1'; const publicKey = 'BBJajnSVNxciJjOo3';
-
-    // Agregamos la hora al correo también para que el cliente tenga respaldo
-    const itemsHtml = cart.map(item => {
-        const reservaTexto = item.reserva ? `(Retiro: ${item.reserva.time})` : '';
-        return `<tr><td>${item.producto.nombre} ${reservaTexto} (${item.formato.nombre})</td><td style="text-align:center">${item.cantidad}</td><td>$${(item.formato.precio * item.cantidad).toLocaleString()}</td></tr>`;
-    }).join('');
+  // --- NUEVO MANEJADOR ESPECÍFICO PARA RUT ---
+  const handleRutChange = (e) => {
+    let val = e.target.value;
     
-    const direccionFinal = tipoEntrega === 'retiro' ? 'RETIRO EN TIENDA' : `${datosEnvio.direccion}, ${datosEnvio.ciudad}`;
+    // 1. Permitir solo números y la letra K
+    val = val.replace(/[^0-9kK]/g, '');
+    
+    // 2. Limitar el largo a 9 caracteres (Ej: 12345678k)
+    if (val.length > 9) return;
+
+    setDatosEnvio({ ...datosEnvio, rut: val });
+  };
+
+  const enviarNotificacionCorreo = (ordenId) => {
+    // ⚠️ TUS CLAVES
+    const serviceID = 'service_94ynerp'; 
+    const templateID = 'template_feryfg1'; 
+    const publicKey = 'BBJajnSVNxciJjOo3';
+
+    const itemsHtml = cart.map(item => {
+        const reservaTexto = item.reserva ? `<br/><span style="color:#c4a484; font-size:12px;">(Retiro: ${item.reserva.time})</span>` : '';
+        return `<tr><td>${item.producto.nombre} ${reservaTexto} (${item.formato.nombre})</td><td style="text-align:center">${item.cantidad}</td><td>$${(item.formato.precio * item.cantidad).toLocaleString('es-CL')}</td></tr>`;
+    }).join('');
+
+    const direccionFinal = tipoEntrega === 'retiro' ? 'RETIRO EN TIENDA' : `${datosEnvio.direccion}, ${datosEnvio.ciudad}, ${datosEnvio.region}`;
 
     const templateParams = {
-      to_name: user.user_metadata?.nombre || "Cliente", to_email: datosEnvio.email, order_id: ordenId, total: totalFinal.toLocaleString(), tabla_productos: itemsHtml, customer_address: direccionFinal, customer_phone: datosEnvio.telefono, rut_cliente: datosEnvio.rut, tipo_entrega: tipoEntrega === 'retiro' ? 'Retiro en Tienda' : 'Envío a Domicilio'
+      to_name: user.user_metadata?.nombre || "Cliente", to_email: datosEnvio.email, order_id: ordenId, total: totalFinal.toLocaleString('es-CL'), tabla_productos: itemsHtml, customer_address: direccionFinal, customer_phone: datosEnvio.telefono, rut_cliente: datosEnvio.rut, tipo_entrega: tipoEntrega === 'retiro' ? 'Retiro en Tienda' : 'Envío a Domicilio'
     };
 
     emailjs.send(serviceID, templateID, templateParams, publicKey).catch(err => console.error(err));
@@ -63,11 +119,25 @@ function Checkout() {
 
   const procesarCompra = async (e) => {
     e.preventDefault();
-    if (!datosEnvio.rut || !datosEnvio.email) return setMsg({ type: 'warning', text: 'El RUT y el Email son obligatorios.' });
-    if (tipoEntrega === 'delivery' && (!datosEnvio.direccion || !datosEnvio.ciudad || !datosEnvio.region)) return setMsg({ type: 'warning', text: 'Completa la dirección.' });
-    if (!file) return setMsg({ type: 'warning', text: 'Sube el comprobante.' });
+    setMsg({ type: '', text: '' }); // Limpiar mensajes previos
 
-    setLoading(true); setMsg({});
+    // VALIDACIÓN DE RUT
+    if (!datosEnvio.rut) return setMsg({ type: 'warning', text: 'El RUT es obligatorio.' });
+    if (!validarRut(datosEnvio.rut)) {
+        return setMsg({ type: 'warning', text: 'El RUT ingresado no es válido. Revisa el dígito verificador.' });
+    }
+
+    if (!datosEnvio.email) return setMsg({ type: 'warning', text: 'El Email es obligatorio.' });
+    
+    if (tipoEntrega === 'delivery') {
+      if (!datosEnvio.direccion || !datosEnvio.ciudad || !datosEnvio.region) {
+        return setMsg({ type: 'warning', text: 'Para envíos, debes completar Dirección, Ciudad y Región.' });
+      }
+    }
+
+    if (!file) return setMsg({ type: 'warning', text: 'Debes subir el comprobante.' });
+
+    setLoading(true);
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -76,7 +146,6 @@ function Checkout() {
       if (uploadError) throw uploadError;
       const { data: publicURLData } = supabase.storage.from('comprobantes').getPublicUrl(fileName);
 
-      // 1. Crear Orden Principal
       const { data: ordenData, error: ordenError } = await supabase.from('ordenes').insert([{
           user_id: user.id, nombre: user.user_metadata?.nombre || 'Cliente', apellido: user.user_metadata?.apellido || '', rut: datosEnvio.rut, email_contact: datosEnvio.email, email: user.email, telefono: datosEnvio.telefono,
           direccion: tipoEntrega === 'retiro' ? 'Retiro en Tienda' : datosEnvio.direccion, ciudad: tipoEntrega === 'retiro' ? 'Valdivia' : datosEnvio.ciudad, region: tipoEntrega === 'retiro' ? 'Los Ríos' : datosEnvio.region,
@@ -85,19 +154,7 @@ function Checkout() {
 
       if (ordenError) throw ordenError;
 
-      // 2. Crear Detalles (AQUÍ ES LA CORRECCIÓN)
-      const detalles = cart.map(item => ({ 
-          id_orden: ordenData.id_orden, 
-          id_producto: item.id_producto, 
-          id_formato: item.id_formato, 
-          cantidad: item.cantidad, 
-          precio_unitario: item.formato.precio, 
-          subtotal_item: item.formato.precio * item.cantidad, 
-          nombre_producto: item.producto.nombre, 
-          formato_nombre: item.formato.nombre,
-          datos_reserva: item.reserva // <--- ¡ESTO ES LO QUE FALTABA!
-      }));
-      
+      const detalles = cart.map(item => ({ id_orden: ordenData.id_orden, id_producto: item.id_producto, id_formato: item.id_formato, cantidad: item.cantidad, precio_unitario: item.formato.precio, subtotal_item: item.formato.precio * item.cantidad, nombre_producto: item.producto.nombre, formato_nombre: item.formato.nombre, datos_reserva: item.reserva }));
       const { error: detallesError } = await supabase.from('detalles_orden').insert(detalles);
       if (detallesError) throw detallesError;
 
@@ -112,20 +169,32 @@ function Checkout() {
     <Container className="my-5">
       <h2 className="mb-4 fw-bold text-coffee-title">Finalizar Compra</h2>
       {msg.text && <Alert variant={msg.type}>{msg.text}</Alert>}
+      
+      {tienePreparaciones && (
+        <Alert variant="warning" className="d-flex align-items-center mb-4 border-0 shadow-sm">
+          <FaInfoCircle className="me-3 fs-4" />
+          <div><strong>Tu carrito contiene preparaciones.</strong><div className="small">Solo disponible para <u>Retiro en Tienda</u>.</div></div>
+        </Alert>
+      )}
+
       <Row>
         <Col md={7}>
+          
           <Card className="mb-4 shadow-sm border-0">
             <Card.Header className="bg-white fw-bold">1. Método de Entrega</Card.Header>
             <Card.Body>
               <div className="d-flex gap-3">
                 <Button 
-                  onClick={() => setTipoEntrega('delivery')}
+                  onClick={() => !tienePreparaciones && setTipoEntrega('delivery')}
                   className="flex-grow-1 py-3 fw-bold text-uppercase d-flex align-items-center justify-content-center"
+                  disabled={tienePreparaciones}
                   style={{
                     backgroundColor: tipoEntrega === 'delivery' ? '#c4a484' : 'white',
-                    color: tipoEntrega === 'delivery' ? 'white' : '#5c3d2e',
-                    border: '2px solid #c4a484',
-                    borderRadius: '50px'
+                    color: tipoEntrega === 'delivery' ? 'white' : (tienePreparaciones ? '#ccc' : '#5c3d2e'),
+                    border: `2px solid ${tienePreparaciones ? '#eee' : '#c4a484'}`,
+                    borderRadius: '50px',
+                    opacity: tienePreparaciones ? 0.6 : 1,
+                    cursor: tienePreparaciones ? 'not-allowed' : 'pointer'
                   }}
                 >
                   <FaTruck className="me-2"/> Envío Bluexpress
@@ -151,14 +220,29 @@ function Checkout() {
             <Card.Body>
               <Form>
                 <Row>
-                  <Col md={6}><Form.Group className="mb-3"><Form.Label>Email</Form.Label><Form.Control type="email" name="email" value={datosEnvio.email} onChange={handleInputChange} required /></Form.Group></Col>
-                  <Col md={6}><Form.Group className="mb-3"><Form.Label>RUT</Form.Label><Form.Control type="text" name="rut" placeholder="Ej: 12345678k" value={datosEnvio.rut} onChange={handleInputChange} required /></Form.Group></Col>
+                  <Col md={6}><Form.Group className="mb-3"><Form.Label>Email de Contacto</Form.Label><Form.Control type="email" name="email" value={datosEnvio.email} onChange={handleInputChange} required /></Form.Group></Col>
+                  
+                  {/* INPUT RUT CON VALIDACIÓN */}
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>RUT (Sin puntos ni guión)</Form.Label>
+                      <Form.Control 
+                        type="text" 
+                        name="rut" 
+                        placeholder="Ej: 12345678k" 
+                        value={datosEnvio.rut} 
+                        onChange={handleRutChange} // Usamos el nuevo handler
+                        required 
+                      />
+                      <Form.Text className="text-muted">Ej: 18555333k (Mínimo 8 caracteres)</Form.Text>
+                    </Form.Group>
+                  </Col>
                 </Row>
+                
                 <Row><Col><Form.Group className="mb-3"><Form.Label>Teléfono</Form.Label><Form.Control type="text" name="telefono" onChange={handleInputChange} required placeholder="+56 9..." /></Form.Group></Col></Row>
                 {tipoEntrega === 'delivery' && (
                   <div className="animate-fade-in">
-                    <hr className="my-4"/>
-                    <h6 className="text-muted mb-3">Dirección de Envío</h6>
+                    <hr className="my-4"/><h6 className="text-muted mb-3">Dirección de Envío</h6>
                     <Row>
                       <Col md={6}><Form.Group className="mb-3"><Form.Label>Región</Form.Label><Form.Select name="region" value={datosEnvio.region} onChange={handleInputChange}><option value="">Selecciona...</option>{REGIONES_CHILE.map(r => <option key={r} value={r}>{r}</option>)}</Form.Select></Form.Group></Col>
                       <Col md={6}><Form.Group className="mb-3"><Form.Label>Ciudad</Form.Label><Form.Control type="text" name="ciudad" onChange={handleInputChange} /></Form.Group></Col>
@@ -193,21 +277,19 @@ function Checkout() {
               <ListGroup variant="flush" className="mb-3">
                 {cart.map((item, idx) => (
                     <ListGroup.Item key={idx} className="d-flex justify-content-between px-0">
-                        <div>
-                            <small className="fw-bold">{item.producto.nombre}</small>
-                            <div className="text-muted small">
-                                {item.formato.nombre} x {item.cantidad}
-                                {/* Mostrar hora en el resumen del checkout también */}
-                                {item.reserva && <span className="d-block text-warning fw-bold">Retiro: {item.reserva.time}</span>}
-                            </div>
-                        </div>
-                        <span>${(item.formato.precio * item.cantidad).toLocaleString()}</span>
+                        <div><small className="fw-bold">{item.producto.nombre}</small><div className="text-muted small">{item.formato.nombre} x {item.cantidad}{item.reserva && <span className="d-block text-warning fw-bold">Retiro: {item.reserva.time}</span>}</div></div>
+                        <span>${(item.formato.precio * item.cantidad).toLocaleString('es-CL')}</span>
                     </ListGroup.Item>
                 ))}
               </ListGroup>
-              <div className="d-flex justify-content-between small text-muted mb-2"><span>Subtotal:</span><span>${totalProductos.toLocaleString()}</span></div>
-              <div className="d-flex justify-content-between small text-muted mb-3 border-bottom pb-3"><span>Envío:</span><span>{costoEnvio === 0 ? 'Gratis' : `$${costoEnvio.toLocaleString()}`}</span></div>
-              <div className="d-flex justify-content-between fw-bold fs-4"><span>Total:</span><span className="text-success">${totalFinal.toLocaleString()}</span></div>
+              <div className="d-flex justify-content-between small text-muted mb-2"><span>Subtotal:</span><span>${totalProductos.toLocaleString('es-CL')}</span></div>
+              <div className="d-flex justify-content-between small text-muted mb-3 border-bottom pb-3"><span>Envío:</span><span>{costoEnvio === 0 ? 'Gratis' : `$${costoEnvio.toLocaleString('es-CL')}`}</span></div>
+              
+              <div className="d-flex justify-content-between align-items-center pt-2">
+                <span className="fw-bold text-uppercase" style={{ color: '#C9A97E', letterSpacing: '1px' }}>Total Pedido:</span>
+                <span className="fw-bold" style={{ color: '#C9A97E', fontSize: '1.5rem' }}>${totalFinal.toLocaleString('es-CL')}</span>
+              </div>
+              
               <Button variant="success" size="lg" className="w-100 mt-4 fw-bold btn-coffee-pill border-0" onClick={procesarCompra} disabled={loading}>{loading ? <Spinner animation="border" size="sm" /> : 'Finalizar Compra'}</Button>
             </Card.Body>
           </Card>
