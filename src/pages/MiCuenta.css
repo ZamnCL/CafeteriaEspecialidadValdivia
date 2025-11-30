@@ -126,6 +126,27 @@
   color: #8C7B67;
 }
 
+.miCuenta-container form input[type="text"] {
+  background: #2A2A2A;
+  border: 1px solid var(--fondo-tab-activo);
+  border-radius: 12px;
+  padding: 10px 15px;
+  color: var(--texto-blanco);
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.miCuenta-container form input[type="text"]::placeholder {
+  color: #8C7B67;
+  font-style: italic;
+}
+
+.miCuenta-container form input[type="text"]:focus {
+  outline: none;
+  border-color: var(--beige);
+  box-shadow: 0 0 8px rgba(201, 169, 126, 0.5);
+}
+
 .miCuenta-btn-guardar {
   background: var(--fondo-tab-activo);
   border: none;
@@ -135,14 +156,27 @@
   font-weight: 600;
 }
 
+/* --- ESTILOS BOTÓN VER / CANCELAR --- */
 .miCuenta-btn-cancelar {
-  background: #6A4E42;
+  background: #6A4E42; /* Color base marrón */
   border: none;
   padding: 10px 20px;
   border-radius: 12px;
   color: var(--beige-muy-claro);
   font-weight: 600;
+  transition: background-color 0.2s ease; /* Transición suave */
 }
+
+/* Hover y Focus para oscurecer ligeramente */
+.miCuenta-btn-cancelar:hover,
+.miCuenta-btn-cancelar:focus,
+.miCuenta-btn-cancelar:active {
+  background: #543d34 !important; /* Un tono más oscuro del marrón base */
+  color: var(--beige-muy-claro) !important;
+  border: none !important;
+  box-shadow: none !important; /* Evitar sombra azul de bootstrap */
+}
+
 
 .miCuenta-btn-opinar {
   background: var(--beige);
@@ -151,6 +185,13 @@
   border-radius: 8px;
   font-weight: 700;
   padding: 5px 12px;
+}
+
+.miCuenta-btn-opinar:disabled {
+  background: var(--beige) !important;
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+  color: #1B1B1B !important;
 }
 
 .modal-content {
@@ -175,37 +216,18 @@
   color: var(--beige-claro) !important;
 }
 
-.miCuenta-btn-opinar {
-  background: var(--beige) !important;
-  color: #1B1B1B !important;
-  border: none !important;
-  box-shadow: none !important;
+/* --- NUEVOS ESTILOS PARA SEPARADORES DE ORDEN --- */
+
+/* Asegurar que las filas de producto NO tengan borde */
+.miCuenta-table tbody tr.fila-producto td {
+  border-bottom: none !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
 }
 
-.miCuenta-btn-opinar:disabled {
-  background: var(--beige) !important;
-  opacity: 0.4 !important;
-  cursor: not-allowed !important;
-  color: #1B1B1B !important;
-}
-
-.miCuenta-container form input[type="text"] {
-  background: #2A2A2A;
-  border: 1px solid var(--fondo-tab-activo);
-  border-radius: 12px;
-  padding: 10px 15px;
-  color: var(--texto-blanco);
-  font-weight: 500;
-  transition: all 0.2s ease-in-out;
-}
-
-.miCuenta-container form input[type="text"]::placeholder {
-  color: #8C7B67;
-  font-style: italic;
-}
-
-.miCuenta-container form input[type="text"]:focus {
-  outline: none;
-  border-color: var(--beige);
-  box-shadow: 0 0 8px rgba(201, 169, 126, 0.5);
+/* Asegurar que la fila de TOTAL tenga el borde separador */
+.miCuenta-table tbody tr.fila-total td {
+  border-bottom: 1px solid var(--beige) !important;
+  padding-bottom: 1.5rem !important; /* Espacio debajo del texto */
+  padding-top: 0.5rem !important;
 }

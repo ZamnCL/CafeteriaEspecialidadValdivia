@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Tab, Tabs, Table, Modal, Alert, Badge, Card } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Tab, Tabs, Table, Modal, Alert, Badge, Card, InputGroup } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { FaSearch, FaEye, FaStar, FaMapMarkerAlt, FaCalendarAlt, FaCreditCard, FaTruck } from 'react-icons/fa';
 
 import "./MiCuenta.css";
 
@@ -12,7 +13,6 @@ function MiCuenta() {
   
   const [perfil, setPerfil] = useState({ nombre: '', direccion: '', telefono: '' });
   const [ordenes, setOrdenes] = useState([]);
-  const [precios, setPrecios] = useState({});
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(true);
 
@@ -26,7 +26,6 @@ function MiCuenta() {
     comentario: ''
   });
 
-  // NUEVO ESTADO para búsqueda
   const [busqueda, setBusqueda] = useState('');
 
   useEffect(() => {
@@ -55,15 +54,6 @@ function MiCuenta() {
         .order('fecha', { ascending: false });
 
       setOrdenes(dataOrdenes || []);
-
-      const { data: productos } = await supabase
-        .from('productos')
-        .select('id_producto, precio');
-
-      const mapaPrecios = {};
-      productos?.forEach(p => { mapaPrecios[p.id_producto] = p.precio });
-
-      setPrecios(mapaPrecios);
 
     } catch (error) {
       console.error(error);
@@ -107,10 +97,36 @@ function MiCuenta() {
     }
   };
 
+  const ordenesFiltradas = ordenes.filter(orden => {
+    const term = busqueda.toLowerCase();
+    const idMatch = orden.id_orden.toString().includes(term);
+    const prodMatch = orden.detalles_orden.some(d => d.nombre_producto.toLowerCase().includes(term));
+    return idMatch || prodMatch;
+  });
+
   if (loading) return <Container className="mt-5 text-center">Cargando...</Container>;
 
   return (
     <Container className="my-5 miCuenta-container">
+      
+      {/* ESTILOS ESPECÍFICOS (Borde en Total) */}
+      <style>{`
+        .miCuenta-table tr.fila-producto td {
+          border-bottom: none !important;
+          padding-top: 10px !important;
+          padding-bottom: 10px !important;
+        }
+        
+        .miCuenta-table tr.fila-total td {
+          border-bottom: 1px solid #C9A97E !important;
+          padding-bottom: 1.5rem !important;
+          padding-top: 0.5rem !important;
+        }
+
+        .miCuenta-table tbody tr.fila-producto:first-child td {
+          padding-top: 1.5rem !important;
+        }
+      `}</style>
 
       <h2 className="miCuenta-title mb-4">Mi Cuenta</h2>
 
@@ -135,20 +151,21 @@ function MiCuenta() {
               </Card.Header>
 
               <Card.Body>
-                {/* BARRA DE BÚSQUEDA */}
-                <Form className="mb-3">
+                <InputGroup className="mb-4" style={{maxWidth: '400px'}}>
+                  <InputGroup.Text className="bg-dark border-dark text-white"><FaSearch /></InputGroup.Text>
                   <Form.Control
                     type="text"
-                    placeholder="Buscar producto..."
+                    placeholder="Buscar por ID o producto..."
                     value={busqueda}
                     onChange={e => setBusqueda(e.target.value)}
+                    className="miCuenta-input"
                   />
-                </Form>
+                </InputGroup>
 
-                <Table responsive size="sm" className="miCuenta-table">
+                <Table responsive hover className="miCuenta-table align-middle" style={{borderCollapse: 'collapse'}}>
                   <thead>
                     <tr>
-                      <th>Pedido</th>
+                      <th># Pedido</th>
                       <th>Fecha</th>
                       <th>Producto</th>
                       <th>Cant.</th>
@@ -156,30 +173,23 @@ function MiCuenta() {
                       <th>Acciones</th>
                     </tr>
                   </thead>
-
                   <tbody>
-                    {ordenes.map((orden) => {
-                      const productosFiltrados = orden.detalles_orden.filter(d =>
+                    {ordenesFiltradas.map((orden) => {
+                      const productosVisibles = orden.detalles_orden.filter(d => 
+                        busqueda === '' || 
+                        orden.id_orden.toString().includes(busqueda) ||
                         d.nombre_producto.toLowerCase().includes(busqueda.toLowerCase())
                       );
 
-                      if (productosFiltrados.length === 0) return null;
-
-                      // Calcular total del pedido
-                      const totalPedido = productosFiltrados.reduce((acc, d) => {
-                        const precio = precios[d.id_producto || d.producto_id] || 0;
-                        return acc + precio * d.cantidad;
-                      }, 0);
+                      if (productosVisibles.length === 0) return null;
 
                       return (
                         <>
-                          {productosFiltrados.map((d, i) => (
-                            <tr key={`${orden.id_orden}-${i}`}>
-                              <td>#{orden.id_orden}</td>
-                              <td>
-                                <span className="miCuenta-fecha">
-                                  {new Date(orden.fecha).toLocaleString()}
-                                </span>
+                          {productosVisibles.map((d, i) => (
+                            <tr key={`${orden.id_orden}-${i}`} className="fila-producto">
+                              <td className={i === 0 ? "fw-bold" : "text-muted opacity-0"}>#{orden.id_orden}</td>
+                              <td className={i === 0 ? "" : "opacity-0"}>
+                                <span className="miCuenta-fecha">{new Date(orden.fecha).toLocaleDateString()}</span>
                               </td>
                               <td>
                                 <span className="miCuenta-product-title">{d.nombre_producto}</span>
@@ -188,47 +198,48 @@ function MiCuenta() {
                               </td>
                               <td className="fw-bold">x{d.cantidad}</td>
                               <td>
-                                <Badge
-                                  bg={
-                                    orden.estado === "Completado" ? "success" :
-                                    orden.estado === "Rechazado" ? "danger" :
-                                    "warning"
-                                  }
-                                  text="dark"
-                                  className="px-3"
-                                >
-                                  {orden.estado === "Por Confirmar" ? "Pendiente" : orden.estado}
-                                </Badge>
+                                {i === 0 && (
+                                  <Badge
+                                    bg={orden.estado === "Completado" ? "success" : orden.estado === "Rechazado" ? "danger" : "warning"}
+                                    text="dark"
+                                    className="px-3 py-2"
+                                  >
+                                    {orden.estado === "Por Confirmar" ? "Pendiente" : orden.estado}
+                                  </Badge>
+                                )}
                               </td>
                               <td className="text-end">
-                                <Button
-                                  size="sm"
-                                  className="miCuenta-btn-cancelar me-2"
-                                  onClick={() => setDetalleModal(orden)}
-                                >
-                                  Ver
-                                </Button>
-
-                                <Button
-                                  className="miCuenta-btn-opinar"
-                                  size="sm"
-                                  onClick={() => abrirModalReseña(d)}
-                                  disabled={orden.estado !== "Completado"}
-                                  style={{
-                                    opacity: orden.estado !== "Completado" ? 0.4 : 1,
-                                    cursor: orden.estado !== "Completado" ? "not-allowed" : "pointer",
-                                  }}
-                                >
-                                  ★ Opinar
-                                </Button>
+                                <div className="d-flex gap-2 justify-content-end">
+                                  {i === 0 && (
+                                    <Button size="sm" className="miCuenta-btn-cancelar" onClick={() => setDetalleModal(orden)}>
+                                      <FaEye className="me-1"/> Ver
+                                    </Button>
+                                  )}
+                                  <Button
+                                    className="miCuenta-btn-opinar"
+                                    size="sm"
+                                    onClick={() => abrirModalReseña(d)}
+                                    disabled={orden.estado !== "Completado"}
+                                    style={{opacity: orden.estado !== "Completado" ? 0.4 : 1, cursor: orden.estado !== "Completado" ? "not-allowed" : "pointer"}}
+                                  >
+                                    <FaStar className="mb-1"/> Opinar
+                                  </Button>
+                                </div>
                               </td>
                             </tr>
                           ))}
 
-                          {/* FILA DEL TOTAL DEL PEDIDO */}
-                          <tr className="fw-bold">
-                            <td colSpan={5} className="text-end">Total Pedido:</td>
-                            <td className="text-end">${totalPedido.toLocaleString()}</td>
+                          <tr className="fila-total">
+                            <td colSpan={6}>
+                              <div className="d-flex justify-content-end align-items-center gap-3">
+                                <span className="fw-bold" style={{ color: '#C9A97E', fontSize: '1.1rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                  Total Pedido:
+                                </span>
+                                <span className="fw-bold" style={{ color: '#C9A97E', fontSize: '1.3rem' }}>
+                                  ${orden.total.toLocaleString()}
+                                </span>
+                              </div>
+                            </td>
                           </tr>
                         </>
                       );
@@ -241,158 +252,121 @@ function MiCuenta() {
         </Tab>
 
         <Tab eventKey="datos" title="Mis Datos de Envío">
-          <Card className="miCuenta-card p-4">
+          <Card className="miCuenta-card p-4 border-0">
             <Form onSubmit={manejarGuardarPerfil}>
               <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label className="miCuenta-label">Nombre Completo</Form.Label>
-                    <Form.Control 
-                      type="text"
-                      className="miCuenta-input"
-                      value={perfil.nombre || ''}
-                      onChange={e => setPerfil({ ...perfil, nombre: e.target.value })}
-                    />
-                  </Form.Group>
-                </Col>
-
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label className="miCuenta-label">Teléfono</Form.Label>
-                    <Form.Control 
-                      type="text"
-                      className="miCuenta-input"
-                      value={perfil.telefono || ''}
-                      onChange={e => setPerfil({ ...perfil, telefono: e.target.value })}
-                    />
-                  </Form.Group>
-                </Col>
+                <Col md={6}><Form.Group className="mb-3"><Form.Label className="miCuenta-label">Nombre Completo</Form.Label><Form.Control type="text" className="miCuenta-input" value={perfil.nombre || ''} onChange={e => setPerfil({ ...perfil, nombre: e.target.value })} /></Form.Group></Col>
+                <Col md={6}><Form.Group className="mb-3"><Form.Label className="miCuenta-label">Teléfono</Form.Label><Form.Control type="text" className="miCuenta-input" value={perfil.telefono || ''} onChange={e => setPerfil({ ...perfil, telefono: e.target.value })} /></Form.Group></Col>
               </Row>
-
-              <Form.Group className="mb-3">
-                <Form.Label className="miCuenta-label">Dirección de Envío</Form.Label>
-                <Form.Control 
-                  type="text"
-                  className="miCuenta-input"
-                  value={perfil.direccion || ''}
-                  onChange={e => setPerfil({ ...perfil, direccion: e.target.value })}
-                  placeholder="Calle, Número, Comuna"
-                />
-              </Form.Group>
-
-              <Button className="miCuenta-btn-guardar mt-2" type="submit">
-                Guardar Información
-              </Button>
+              <Form.Group className="mb-3"><Form.Label className="miCuenta-label">Dirección de Envío</Form.Label><Form.Control type="text" className="miCuenta-input" value={perfil.direccion || ''} onChange={e => setPerfil({ ...perfil, direccion: e.target.value })} placeholder="Calle, Número, Comuna" /></Form.Group>
+              <Button className="miCuenta-btn-guardar mt-2" type="submit">Guardar Información</Button>
             </Form>
           </Card>
         </Tab>
       </Tabs>
 
+      {/* --- MODAL DETALLE COMPLETO (MINI VENTANA CON TODA LA INFO) --- */}
       {detalleModal && (
-        <Modal show onHide={() => setDetalleModal(null)} centered>
-          <div className="miCuenta-card p-3">
-            <Modal.Header closeButton className="miCuenta-card-header">
-              <Modal.Title className="miCuenta-title">
-                Detalle del Pedido #{detalleModal.id_orden}
-              </Modal.Title>
-            </Modal.Header>
+        <Modal show onHide={() => setDetalleModal(null)} size="lg" centered contentClassName="miCuenta-card border-0">
+          <Modal.Header closeButton className="miCuenta-card-header border-secondary">
+            <Modal.Title className="miCuenta-title">
+              Pedido #{detalleModal.id_orden}
+            </Modal.Title>
+          </Modal.Header>
 
-            <Modal.Body>
-              <p>
-                <strong>Fecha:</strong>{" "}
-                <span className="miCuenta-fecha">
-                  {new Date(detalleModal.fecha).toLocaleString()}
-                </span>
-              </p>
+          <Modal.Body>
+            {/* INFORMACIÓN GENERAL DEL PEDIDO */}
+            <div className="p-3 mb-4 rounded" style={{backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid #333'}}>
+              <Row className="g-3 text-white-50">
+                <Col md={6}>
+                  <div className="mb-2"><FaCalendarAlt className="me-2 text-coffee-accent"/> <strong className="text-white">Fecha:</strong> {new Date(detalleModal.fecha).toLocaleString()}</div>
+                  <div className="mb-2"><FaCreditCard className="me-2 text-coffee-accent"/> <strong className="text-white">Pago:</strong> {detalleModal.metodo_pago}</div>
+                  <div>
+                     <Badge bg={detalleModal.estado === "Completado" ? "success" : detalleModal.estado === "Rechazado" ? "danger" : "warning"} text="dark">
+                        {detalleModal.estado === "Por Confirmar" ? "Pendiente de Verificación" : detalleModal.estado}
+                     </Badge>
+                  </div>
+                </Col>
+                <Col md={6}>
+                  <div className="mb-2"><FaTruck className="me-2 text-coffee-accent"/> <strong className="text-white">Entrega:</strong> {detalleModal.tipo_entrega || 'Delivery'}</div>
+                  <div className="d-flex align-items-start">
+                    <FaMapMarkerAlt className="me-2 mt-1 text-coffee-accent"/> 
+                    <div>
+                      <strong className="text-white d-block">Dirección:</strong>
+                      {detalleModal.direccion}, {detalleModal.ciudad}
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+            </div>
 
-              <Table size="sm" className="miCuenta-table">
-                <thead>
-                  <tr>
-                    <th>Producto</th>
-                    <th>Precio</th>
-                    <th>Cant.</th>
-                    <th>Subtotal</th>
+            {/* TABLA DE PRODUCTOS */}
+            <h6 className="text-coffee-accent mb-3 fw-bold">Productos</h6>
+            <Table responsive size="sm" className="miCuenta-table align-middle mb-0">
+              <thead className="text-muted small">
+                <tr>
+                  <th>Producto</th>
+                  <th className="text-end">Precio Unit.</th>
+                  <th className="text-center">Cant.</th>
+                  <th className="text-end">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detalleModal.detalles_orden.map((d, i) => (
+                  <tr key={i} style={{borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
+                    <td className="py-3">
+                      <div className="fw-bold text-white">{d.nombre_producto}</div>
+                      <small className="text-muted">{d.formato_nombre}</small>
+                    </td>
+                    <td className="text-end text-white-50">${d.precio_unitario.toLocaleString()}</td>
+                    <td className="text-center fw-bold">x{d.cantidad}</td>
+                    <td className="text-end text-coffee-accent fw-bold">
+                      ${(d.subtotal_item || (d.precio_unitario * d.cantidad)).toLocaleString()}
+                    </td>
                   </tr>
-                </thead>
+                ))}
+              </tbody>
+            </Table>
 
-                <tbody>
-                  {detalleModal.detalles_orden.map((d, i) => (
-                    <tr key={i}>
-                      <td>{d.nombre_producto}</td>
-                      <td>
-                        ${(
-                          precios[d.id_producto || d.producto_id] || 0
-                        ).toLocaleString()}
-                      </td>
-                      <td>{d.cantidad}</td>
-                      <td>
-                        ${(
-                          (precios[d.id_producto || d.producto_id] || 0) * d.cantidad
-                        ).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+            {/* TOTAL FINAL */}
+            <div className="d-flex justify-content-end mt-4 pt-3 border-top border-secondary align-items-center">
+              <span className="me-3 text-muted text-uppercase fw-bold small">Total Pagado:</span>
+              <span className="fs-3 fw-bold text-success">${detalleModal.total.toLocaleString()}</span>
+            </div>
+          </Modal.Body>
 
-              <div className="text-end fw-bold mt-3">
-                Total: ${detalleModal.total.toLocaleString()}
-              </div>
-            </Modal.Body>
-
-            <Modal.Footer>
-              <Button className="miCuenta-btn-cancelar" onClick={() => setDetalleModal(null)}>
-                Cerrar
-              </Button>
-            </Modal.Footer>
-          </div>
+          <Modal.Footer className="border-top-0">
+            <Button className="miCuenta-btn-cancelar" onClick={() => setDetalleModal(null)}>
+              Cerrar
+            </Button>
+          </Modal.Footer>
         </Modal>
       )}
 
       <Modal show={showResenaModal} onHide={() => setShowResenaModal(false)} centered>
         <div className="miCuenta-card p-2">
-          <Modal.Header closeButton className="miCuenta-card-header">
-            <Modal.Title className="miCuenta-title">
-              Opinar sobre {reseñaData.nombre_producto}
-            </Modal.Title>
+          <Modal.Header closeButton className="miCuenta-card-header border-secondary">
+            <Modal.Title className="miCuenta-title fs-5">Opinar sobre <span className="text-coffee-accent">{reseñaData.nombre_producto}</span></Modal.Title>
           </Modal.Header>
-
           <Modal.Body>
             <Form>
-              <Form.Group className="mb-3">
-                <Form.Label className="miCuenta-label">Calificación</Form.Label>
-                <div className="fs-3 miCuenta-stars">
+              <Form.Group className="mb-3 text-center">
+                <Form.Label className="miCuenta-label d-block mb-2">Tu Calificación</Form.Label>
+                <div className="fs-1 miCuenta-stars">
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <span 
-                      key={star}
-                      onClick={() => setReseñaData({ ...reseñaData, calificacion: star })}
-                    >
-                      {star <= reseñaData.calificacion ? '★' : '☆'}
-                    </span>
+                    <span key={star} onClick={() => setReseñaData({ ...reseñaData, calificacion: star })} className="mx-1 transition-all">{star <= reseñaData.calificacion ? '★' : '☆'}</span>
                   ))}
                 </div>
               </Form.Group>
-
               <Form.Group>
-                <Form.Label className="miCuenta-label">Tu comentario</Form.Label>
-                <Form.Control 
-                  as="textarea"
-                  rows={3}
-                  className="miCuenta-input"
-                  value={reseñaData.comentario}
-                  onChange={e => setReseñaData({ ...reseñaData, comentario: e.target.value })}
-                />
+                <Form.Label className="miCuenta-label">Tu Comentario</Form.Label>
+                <Form.Control as="textarea" rows={3} className="miCuenta-input" value={reseñaData.comentario} onChange={e => setReseñaData({ ...reseñaData, comentario: e.target.value })} />
               </Form.Group>
             </Form>
           </Modal.Body>
-
           <Modal.Footer className="d-flex justify-content-between">
-            <Button className="miCuenta-btn-cancelar" onClick={() => setShowResenaModal(false)}>
-              Cancelar
-            </Button>
-            <Button className="miCuenta-btn-guardar" onClick={enviarReseña}>
-              Enviar Reseña
-            </Button>
+            <Button className="miCuenta-btn-cancelar" onClick={() => setShowResenaModal(false)}>Cancelar</Button>
+            <Button className="miCuenta-btn-guardar" onClick={enviarReseña}>Enviar Reseña</Button>
           </Modal.Footer>
         </div>
       </Modal>
