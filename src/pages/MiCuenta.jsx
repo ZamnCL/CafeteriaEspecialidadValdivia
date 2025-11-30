@@ -1,9 +1,9 @@
 import { useState, useEffect, Fragment } from 'react';
-import { Container, Row, Col, Form, Button, Tab, Tabs, Table, Modal, Alert, Badge, Card, InputGroup } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Tab, Tabs, Table, Modal, Alert, Badge, Card, InputGroup, Image, Spinner } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaEye, FaStar, FaCalendarAlt, FaCreditCard, FaTruck, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaSearch, FaEye, FaStar, FaCalendarAlt, FaCreditCard, FaTruck, FaMapMarkerAlt, FaCamera, FaTimes } from 'react-icons/fa';
 
 import "./MiCuenta.css";
 
@@ -13,13 +13,23 @@ function MiCuenta() {
   
   const [perfil, setPerfil] = useState({ nombre: '', direccion: '', telefono: '' });
   const [ordenes, setOrdenes] = useState([]);
+  const [misResenasIds, setMisResenasIds] = useState([]); // IDs de productos ya reseñados
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(true);
 
   const [detalleModal, setDetalleModal] = useState(null);
+  
+  // Estado para el Modal de Reseña
   const [showResenaModal, setShowResenaModal] = useState(false);
+  const [enviandoResena, setEnviandoResena] = useState(false);
+  const [archivos, setArchivos] = useState([]); // Para las imágenes
+  const [previews, setPreviews] = useState([]);
   const [reseñaData, setReseñaData] = useState({
-    id_producto: null, nombre_producto: '', calificacion: 5, comentario: ''
+    id_producto: null, 
+    nombre_producto: '', 
+    calificacion: 5, 
+    titulo: '', 
+    comentario: ''
   });
 
   const [busqueda, setBusqueda] = useState('');
@@ -35,13 +45,23 @@ function MiCuenta() {
       const { data: dataPerfil } = await supabase.from('perfiles').select('*').eq('id', user.id).single();
       if (dataPerfil) setPerfil(dataPerfil);
 
+      // Cargar Ordenes
       const { data: dataOrdenes } = await supabase
         .from('ordenes')
         .select(`*, detalles_orden(*)`)
         .eq('user_id', user.id)
         .order('fecha', { ascending: false });
-
       setOrdenes(dataOrdenes || []);
+
+      // Cargar IDs de productos ya reseñados por este usuario
+      const { data: dataResenas } = await supabase
+        .from('resenas')
+        .select('id_producto')
+        .eq('user_id', user.id);
+      
+      const idsResenados = dataResenas ? dataResenas.map(r => r.id_producto) : [];
+      setMisResenasIds(idsResenados);
+
     } catch (error) { console.error(error); } finally { setLoading(false); }
   };
 
@@ -52,15 +72,88 @@ function MiCuenta() {
     else setMsg({ type: 'success', text: 'Información guardada correctamente.' });
   };
 
+  // --- LÓGICA DE RESEÑAS ---
+
   const abrirModalReseña = (detalle) => {
-    setReseñaData({ id_producto: detalle.id_producto, nombre_producto: detalle.nombre_producto, calificacion: 5, comentario: '' });
+    setReseñaData({ 
+      id_producto: detalle.id_producto, 
+      nombre_producto: detalle.nombre_producto, 
+      calificacion: 5, 
+      titulo: '', 
+      comentario: '' 
+    });
+    setArchivos([]);
+    setPreviews([]);
     setShowResenaModal(true);
   };
 
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length + archivos.length > 3) {
+      alert("Máximo 3 imágenes permitidas.");
+      return;
+    }
+    
+    const newPreviews = files.map(file => URL.createObjectURL(file));
+    setArchivos(prev => [...prev, ...files]);
+    setPreviews(prev => [...prev, ...newPreviews]);
+  };
+
+  const removeImage = (index) => {
+    setArchivos(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
   const enviarReseña = async () => {
-    const { error } = await supabase.from('resenas').insert([{ user_id: user.id, id_producto: reseñaData.id_producto, calificacion: parseInt(reseñaData.calificacion), comentario: reseñaData.comentario }]);
-    if (error) alert("Error: " + error.message);
-    else { alert("¡Gracias!"); setShowResenaModal(false); }
+    if (!reseñaData.titulo.trim() || !reseñaData.comentario.trim()) {
+      return alert("El título y el comentario son obligatorios.");
+    }
+
+    setEnviandoResena(true);
+    try {
+      let urlsImagenes = [];
+
+      // 1. Subir Imágenes
+      if (archivos.length > 0) {
+        for (const file of archivos) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('resenas') // Asegúrate de crear este bucket en Supabase
+            .upload(fileName, file);
+          
+          if (uploadError) throw uploadError;
+
+          const { data: publicUrlData } = supabase.storage
+            .from('resenas')
+            .getPublicUrl(fileName);
+            
+          urlsImagenes.push(publicUrlData.publicUrl);
+        }
+      }
+
+      // 2. Guardar en Base de Datos
+      const { error } = await supabase.from('resenas').insert([{ 
+        user_id: user.id, 
+        id_producto: reseñaData.id_producto, 
+        calificacion: parseInt(reseñaData.calificacion), 
+        titulo: reseñaData.titulo,
+        comentario: reseñaData.comentario,
+        imagenes: urlsImagenes
+      }]);
+
+      if (error) throw error;
+
+      alert("¡Gracias por tu opinión!");
+      setShowResenaModal(false);
+      cargarDatos(); // Recargar para actualizar botones de "Ya opinaste"
+
+    } catch (error) {
+      alert("Error: " + error.message);
+    } finally {
+      setEnviandoResena(false);
+    }
   };
 
   const ordenesFiltradas = ordenes.filter(orden => {
@@ -73,16 +166,9 @@ function MiCuenta() {
 
   return (
     <Container className="my-5 miCuenta-container">
-      
       <style>{`
-        .miCuenta-table tr.fila-producto td {
-          border-bottom: none !important;
-          padding-top: 12px !important;
-          padding-bottom: 12px !important;
-        }
-        .miCuenta-table tbody tr.fila-producto:first-child td {
-          padding-top: 1.5rem !important;
-        }
+        .miCuenta-table tr.fila-producto td { border-bottom: none !important; padding-top: 12px !important; padding-bottom: 12px !important; }
+        .miCuenta-table tbody tr.fila-producto:first-child td { padding-top: 1.5rem !important; }
       `}</style>
 
       <h2 className="miCuenta-title mb-4">Mi Cuenta</h2>
@@ -110,87 +196,54 @@ function MiCuenta() {
                 </thead>
                 <tbody>
                   {ordenesFiltradas.map((orden) => {
-                    const productosVisibles = orden.detalles_orden.filter(d => 
-                      busqueda === '' || 
-                      orden.id_orden.toString().includes(busqueda) ||
-                      d.nombre_producto.toLowerCase().includes(busqueda.toLowerCase())
-                    );
-
+                    const productosVisibles = orden.detalles_orden.filter(d => busqueda === '' || orden.id_orden.toString().includes(busqueda) || d.nombre_producto.toLowerCase().includes(busqueda.toLowerCase()));
                     if (productosVisibles.length === 0) return null;
 
                     return (
                       <Fragment key={orden.id_orden}>
-                        {productosVisibles.map((d, i) => (
-                          <tr key={`${orden.id_orden}-${i}`} className="fila-producto">
-                            <td className={i === 0 ? "fw-bold" : "opacity-0"}>#{orden.id_orden}</td>
-                            <td className={i === 0 ? "" : "opacity-0"}>
-                                <span className="miCuenta-fecha">
-                                    {new Date(orden.fecha).toLocaleDateString()}
-                                </span>
-                            </td>
-                            
-                            <td>
-                              <span className="miCuenta-product-title">{d.nombre_producto}</span>
-                              <br />
-                              <small className="text-white-50">{d.formato_nombre}</small>
-                            </td>
-                            
-                            <td className="fw-bold text-center text-white-50">x{d.cantidad}</td>
-                            
-                            <td>
-                              {i === 0 && (
-                                <div className="d-flex align-items-center justify-content-between gap-3">
-                                  <Badge bg={orden.estado === "Completado" ? "success" : orden.estado === "Rechazado" ? "danger" : "warning"} text="dark" className="px-3 py-2">
-                                    {orden.estado === "Por Confirmar" ? "Pendiente" : orden.estado}
-                                  </Badge>
-                                  
-                                  {/* TOTAL DEL PEDIDO A LA DERECHA DEL ESTADO */}
-                                  <div className="text-end">
-                                    <div className="small text-muted text-uppercase" style={{fontSize: '0.65rem', letterSpacing: '0.5px'}}>Total</div>
-                                    <div className="fw-bold" style={{color: '#C9A97E', fontSize: '1.3rem'}}>
-                                      ${orden.total.toLocaleString('es-CL')}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </td>
-
-                            <td className="text-end">
-                              <div className="d-flex gap-2 justify-content-end align-items-center">
-                                {/* BOTÓN VER PRIMERO (izquierda) */}
+                        {productosVisibles.map((d, i) => {
+                          const yaOpino = misResenasIds.includes(d.id_producto);
+                          return (
+                            <tr key={`${orden.id_orden}-${i}`} className="fila-producto">
+                              <td className={i === 0 ? "fw-bold" : "opacity-0"}>#{orden.id_orden}</td>
+                              <td className={i === 0 ? "" : "opacity-0"}><span className="miCuenta-fecha">{new Date(orden.fecha).toLocaleDateString()}</span></td>
+                              <td><span className="miCuenta-product-title">{d.nombre_producto}</span><br /><small className="text-white-50">{d.formato_nombre}</small></td>
+                              <td className="fw-bold text-center text-white-50">x{d.cantidad}</td>
+                              <td>
                                 {i === 0 && (
-                                  <Button
-                                    size="sm"
-                                    className="miCuenta-btn-cancelar"
-                                    onClick={() => setDetalleModal(orden)}
-                                  >
-                                    <FaEye className="me-1"/> Ver
-                                  </Button>
+                                  <div className="d-flex align-items-center justify-content-between gap-3">
+                                    <Badge bg={orden.estado === "Completado" ? "success" : orden.estado === "Rechazado" ? "danger" : "warning"} text="dark" className="px-3 py-2">{orden.estado === "Por Confirmar" ? "Pendiente" : orden.estado}</Badge>
+                                    <div className="text-end"><div className="small text-muted text-uppercase" style={{fontSize: '0.65rem', letterSpacing: '0.5px'}}>Total</div><div className="fw-bold" style={{color: '#C9A97E', fontSize: '1.3rem'}}>${orden.total.toLocaleString('es-CL')}</div></div>
+                                  </div>
                                 )}
-                                
-                                {/* BOTÓN OPINAR DESPUÉS (derecha) */}
-                                <Button
-                                  className="miCuenta-btn-opinar"
-                                  size="sm"
-                                  onClick={() => abrirModalReseña(d)}
-                                  disabled={orden.estado !== "Completado"}
-                                  style={{opacity: orden.estado !== "Completado" ? 0.4 : 1, cursor: orden.estado !== "Completado" ? "not-allowed" : "pointer"}}
-                                >
-                                  <FaStar className="mb-1"/> Opinar
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                        
-                        {/* LÍNEA SEPARADORA BEIGE ENTRE PEDIDOS */}
-                        <tr className="fila-separador">
-                          <td colSpan={6} style={{
-                            borderBottom: '2px solid #C9A97E',
-                            paddingTop: '1rem',
-                            paddingBottom: '1rem'
-                          }}></td>
-                        </tr>
+                              </td>
+                              <td className="text-end">
+                                <div className="d-flex gap-2 justify-content-end align-items-center">
+                                  {i === 0 && <Button size="sm" className="miCuenta-btn-cancelar" onClick={() => setDetalleModal(orden)}><FaEye className="me-1"/> Ver</Button>}
+                                  
+                                  {/* Lógica del Botón Opinar */}
+                                  {orden.estado === "Completado" && (
+                                    <Button
+                                      className="miCuenta-btn-opinar"
+                                      size="sm"
+                                      onClick={() => abrirModalReseña(d)}
+                                      disabled={yaOpino}
+                                      style={{
+                                        opacity: yaOpino ? 0.5 : 1, 
+                                        cursor: yaOpino ? "default" : "pointer",
+                                        backgroundColor: yaOpino ? '#444' : 'var(--beige)',
+                                        color: yaOpino ? '#aaa' : '#1B1B1B'
+                                      }}
+                                    >
+                                      {yaOpino ? 'Ya Opinaste' : <><FaStar className="mb-1"/> Opinar</>}
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="fila-separador"><td colSpan={6} style={{borderBottom: '2px solid #C9A97E', paddingTop: '1rem', paddingBottom: '1rem'}}></td></tr>
                       </Fragment>
                     );
                   })}
@@ -211,23 +264,16 @@ function MiCuenta() {
         </Tab>
       </Tabs>
 
-      {/* Modal Detalle */}
+      {/* Modal Detalle Orden */}
       {detalleModal && (
         <Modal show onHide={() => setDetalleModal(null)} size="lg" centered contentClassName="miCuenta-card border-0">
-          <Modal.Header closeButton className="miCuenta-card-header border-secondary">
-            <Modal.Title className="miCuenta-title">Pedido #{detalleModal.id_orden}</Modal.Title>
-          </Modal.Header>
+          <Modal.Header closeButton className="miCuenta-card-header border-secondary"><Modal.Title className="miCuenta-title">Pedido #{detalleModal.id_orden}</Modal.Title></Modal.Header>
           <Modal.Body>
+             {/* ... (Contenido del detalle igual que antes) ... */}
              <div className="p-3 mb-4 rounded" style={{backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid #333'}}>
               <Row className="g-3 text-white-50">
-                <Col md={6}>
-                  <div className="mb-2"><FaCalendarAlt className="me-2 text-coffee-accent"/> <strong className="text-white">Fecha:</strong> {new Date(detalleModal.fecha).toLocaleDateString()}</div>
-                  <div className="mb-2"><FaCreditCard className="me-2 text-coffee-accent"/> <strong className="text-white">Pago:</strong> {detalleModal.metodo_pago}</div>
-                </Col>
-                <Col md={6}>
-                  <div className="mb-2"><FaTruck className="me-2 text-coffee-accent"/> <strong className="text-white">Entrega:</strong> {detalleModal.tipo_entrega || 'Delivery'}</div>
-                  <div className="d-flex align-items-start"><FaMapMarkerAlt className="me-2 mt-1 text-coffee-accent"/> <div><strong className="text-white d-block">Dirección:</strong>{detalleModal.direccion}, {detalleModal.ciudad}</div></div>
-                </Col>
+                <Col md={6}><div className="mb-2"><FaCalendarAlt className="me-2 text-coffee-accent"/> <strong className="text-white">Fecha:</strong> {new Date(detalleModal.fecha).toLocaleDateString()}</div><div className="mb-2"><FaCreditCard className="me-2 text-coffee-accent"/> <strong className="text-white">Pago:</strong> {detalleModal.metodo_pago}</div></Col>
+                <Col md={6}><div className="mb-2"><FaTruck className="me-2 text-coffee-accent"/> <strong className="text-white">Entrega:</strong> {detalleModal.tipo_entrega || 'Delivery'}</div><div className="d-flex align-items-start"><FaMapMarkerAlt className="me-2 mt-1 text-coffee-accent"/> <div><strong className="text-white d-block">Dirección:</strong>{detalleModal.direccion}, {detalleModal.ciudad}</div></div></Col>
               </Row>
             </div>
             <Table responsive size="sm" className="miCuenta-table align-middle mb-0">
@@ -249,12 +295,91 @@ function MiCuenta() {
         </Modal>
       )}
 
-      {/* Modal Reseña */}
-      <Modal show={showResenaModal} onHide={() => setShowResenaModal(false)} centered contentClassName="miCuenta-card border-0">
-        <div className="p-3">
-          <Modal.Header closeButton className="miCuenta-card-header border-secondary"><Modal.Title className="miCuenta-title fs-5">Opinar sobre <span className="text-coffee-accent">{reseñaData.nombre_producto}</span></Modal.Title></Modal.Header>
-          <Modal.Body><Form><Form.Group className="mb-3 text-center"><Form.Label className="miCuenta-label d-block mb-2">Tu Calificación</Form.Label><div className="fs-1 miCuenta-stars">{[1, 2, 3, 4, 5].map((star) => (<span key={star} onClick={() => setReseñaData({ ...reseñaData, calificacion: star })} className="mx-1 transition-all">{star <= reseñaData.calificacion ? '★' : '☆'}</span>))}</div></Form.Group><Form.Group><Form.Label className="miCuenta-label">Tu Comentario</Form.Label><Form.Control as="textarea" rows={3} className="miCuenta-input" value={reseñaData.comentario} onChange={e => setReseñaData({ ...reseñaData, comentario: e.target.value })} /></Form.Group></Form></Modal.Body>
-          <Modal.Footer className="d-flex justify-content-between"><Button className="miCuenta-btn-cancelar" onClick={() => setShowResenaModal(false)}>Cancelar</Button><Button className="miCuenta-btn-guardar" onClick={enviarReseña}>Enviar Reseña</Button></Modal.Footer>
+      {/* NUEVO MODAL DE RESEÑA CON TÍTULO E IMÁGENES */}
+      <Modal show={showResenaModal} onHide={() => setShowResenaModal(false)} centered contentClassName="miCuenta-card border-0" size="lg">
+        <div className="p-4">
+          <Modal.Header closeButton className="miCuenta-card-header border-secondary pt-0 px-0">
+            <Modal.Title className="miCuenta-title fs-4">Opinar sobre <span className="text-coffee-accent">{reseñaData.nombre_producto}</span></Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="px-0">
+            <Form>
+              {/* Estrellas */}
+              <Form.Group className="mb-4 text-center">
+                <Form.Label className="miCuenta-label d-block mb-2">Calificación General</Form.Label>
+                <div className="fs-1 miCuenta-stars">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span key={star} onClick={() => setReseñaData({ ...reseñaData, calificacion: star })} className="mx-1 transition-all">
+                      {star <= reseñaData.calificacion ? '★' : '☆'}
+                    </span>
+                  ))}
+                </div>
+              </Form.Group>
+
+              {/* Título */}
+              <Form.Group className="mb-3">
+                <Form.Label className="miCuenta-label">Título de la opinión</Form.Label>
+                <Form.Control 
+                  type="text" 
+                  className="miCuenta-input" 
+                  placeholder="Ej: ¡El mejor café de Valdivia!"
+                  value={reseñaData.titulo} 
+                  onChange={e => setReseñaData({ ...reseñaData, titulo: e.target.value })} 
+                />
+              </Form.Group>
+
+              {/* Comentario */}
+              <Form.Group className="mb-3">
+                <Form.Label className="miCuenta-label">Tu experiencia</Form.Label>
+                <Form.Control 
+                  as="textarea" 
+                  rows={4} 
+                  className="miCuenta-input" 
+                  placeholder="Cuéntanos qué te gustó más..."
+                  value={reseñaData.comentario} 
+                  onChange={e => setReseñaData({ ...reseñaData, comentario: e.target.value })} 
+                />
+              </Form.Group>
+
+              {/* Subida de Imágenes */}
+              <Form.Group className="mb-3">
+                <Form.Label className="miCuenta-label d-flex justify-content-between">
+                  <span>Añadir fotos (Opcional, máx 3)</span>
+                  <span className="small text-muted">{archivos.length}/3</span>
+                </Form.Label>
+                
+                {/* Botón Personalizado */}
+                <div className="d-flex flex-wrap gap-3">
+                  {previews.map((src, idx) => (
+                    <div key={idx} className="position-relative" style={{width: '80px', height: '80px'}}>
+                      <Image src={src} className="w-100 h-100 rounded border border-secondary" style={{objectFit: 'cover'}} />
+                      <div 
+                        className="position-absolute top-0 end-0 bg-danger text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" 
+                        style={{width: '20px', height: '20px', cursor: 'pointer', transform: 'translate(30%, -30%)'}}
+                        onClick={() => removeImage(idx)}
+                      >
+                        <FaTimes size={10} />
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {archivos.length < 3 && (
+                    <label className="d-flex flex-column align-items-center justify-content-center rounded border border-secondary" style={{width: '80px', height: '80px', cursor: 'pointer', backgroundColor: 'rgba(255,255,255,0.05)', borderStyle: 'dashed'}}>
+                      <FaCamera className="text-coffee-accent mb-1" />
+                      <span className="text-muted small" style={{fontSize: '0.6rem'}}>Subir</span>
+                      <input type="file" accept="image/*" multiple onChange={handleFileChange} hidden />
+                    </label>
+                  )}
+                </div>
+              </Form.Group>
+
+            </Form>
+          </Modal.Body>
+          <Modal.Footer className="d-flex justify-content-between px-0 border-top-0">
+            <Button className="miCuenta-btn-cancelar" onClick={() => setShowResenaModal(false)} disabled={enviandoResena}>Cancelar</Button>
+            <Button className="miCuenta-btn-guardar px-4" onClick={enviarReseña} disabled={enviandoResena}>
+              {enviandoResena ? <><Spinner as="span" animation="border" size="sm" className="me-2"/>Publicando...</> : 'Publicar Opinión'}
+            </Button>
+          </Modal.Footer>
         </div>
       </Modal>
 

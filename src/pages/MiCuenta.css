@@ -2,7 +2,7 @@
   --fondo-oscuro: #1F1F1F;
   --fondo-oscuro2: #202020;
   --fondo-card: #1B1B1B;
-  --fondo-tab-activo: #3A2E26;
+  --fondo-tab-activo: #3A2E26; /* Café oscuro */
   --fondo-tab-inactivo: #E8DCC2; 
   --beige: #C9A97E;
   --beige-claro: #E8DCC2;
@@ -147,36 +147,51 @@
   box-shadow: 0 0 8px rgba(201, 169, 126, 0.5);
 }
 
+/* --- BOTÓN GUARDAR / PUBLICAR OPINIÓN --- */
 .miCuenta-btn-guardar {
-  background: var(--fondo-tab-activo);
-  border: none;
+  background: var(--fondo-tab-activo) !important;
+  border: 1px solid var(--fondo-tab-activo) !important;
   padding: 10px 20px;
   border-radius: 12px;
-  color: var(--beige-muy-claro);
+  color: var(--beige-muy-claro) !important;
   font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+/* Efecto Hover: Ligeramente más oscuro, NO AZUL */
+.miCuenta-btn-guardar:hover,
+.miCuenta-btn-guardar:focus,
+.miCuenta-btn-guardar:active {
+  background: #2b221c !important; /* Un tono más oscuro que el café original */
+  border-color: #2b221c !important;
+  color: #fff !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.miCuenta-btn-guardar:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 /* --- ESTILOS BOTÓN VER / CANCELAR --- */
 .miCuenta-btn-cancelar {
-  background: #6A4E42; /* Color base marrón */
+  background: #6A4E42; 
   border: none;
   padding: 10px 20px;
   border-radius: 12px;
   color: var(--beige-muy-claro);
   font-weight: 600;
-  transition: background-color 0.2s ease; /* Transición suave */
+  transition: background-color 0.2s ease;
 }
 
-/* Hover y Focus para oscurecer ligeramente */
 .miCuenta-btn-cancelar:hover,
 .miCuenta-btn-cancelar:focus,
 .miCuenta-btn-cancelar:active {
-  background: #543d34 !important; /* Un tono más oscuro del marrón base */
+  background: #543d34 !important; 
   color: var(--beige-muy-claro) !important;
   border: none !important;
-  box-shadow: none !important; /* Evitar sombra azul de bootstrap */
+  box-shadow: none !important;
 }
-
 
 .miCuenta-btn-opinar {
   background: var(--beige);
@@ -216,25 +231,34 @@
   color: var(--beige-claro) !important;
 }
 
-/* --- ESTILOS PARA FILAS DE PRODUCTOS Y SEPARADOR --- */
-
-/* Las filas de productos NO tienen borde inferior */
 .miCuenta-table tbody tr.fila-producto td {
   border-bottom: none !important;
   padding-top: 10px !important;
   padding-bottom: 10px !important;
 }
 
-/* La primera fila de cada pedido tiene más padding arriba */
 .miCuenta-table tbody tr.fila-producto:first-child td {
   padding-top: 1.5rem !important;
 }
 
-/* LÍNEA SEPARADORA BEIGE ENTRE PEDIDOS */
 .miCuenta-table tbody tr.fila-separador td {
   padding: 0 !important;
   height: 0 !important;
   border-bottom: 2px solid #C9A97E !important;
   padding-top: 1rem !important;
   padding-bottom: 1.5rem !important;
+}
+
+.miCuenta-input:focus {
+  background-color: #2A2A2A !important; /* Mismo gris oscuro que usamos antes */
+  color: #E8DCC2 !important; /* Color de texto beige claro */
+  border-color: #C9A97E !important; /* Borde dorado/beige */
+  box-shadow: 0 0 0 0.25rem rgba(201, 169, 126, 0.25) !important; /* Resplandor dorado suave */
+  outline: none !important;
+}
+
+/* Asegura que el textarea también respete esto */
+textarea.miCuenta-input:focus {
+  background-color: #2A2A2A !important;
+  color: #E8DCC2 !important;
 }

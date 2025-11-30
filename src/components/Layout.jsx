@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'; // Agregamos useLocation
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Navbar, Nav, NavDropdown, Container, Badge, Row, Col } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -11,9 +11,7 @@ function Layout() {
   
   const totalItems = cart.reduce((acc, item) => acc + item.cantidad, 0);
 
-  // Función para hacer scroll suave al ancla #visitanos
   const scrollToMap = () => {
-    // Si ya estamos en el home, buscamos el ID y scrolleamos
     if (location.pathname === '/') {
       const element = document.getElementById('visitanos');
       if (element) element.scrollIntoView({ behavior: 'smooth' });
@@ -37,10 +35,9 @@ function Layout() {
               <Nav.Link as={Link} to="/">Inicio</Nav.Link>
               <Nav.Link as={Link} to="/catalogo">Tienda</Nav.Link>
               <Nav.Link as={Link} to="/reserva">Reserva</Nav.Link>
+              <Nav.Link as={Link} to="/resenas">Reseñas</Nav.Link> {/* NUEVO LINK */}
               <Nav.Link as={Link} to="/contacto">Contacto</Nav.Link>
               
-              {/* --- AQUÍ ESTÁ EL NUEVO LINK VISÍTANOS --- */}
-              {/* Usamos un link con hash #visitanos */}
               <Nav.Link as={Link} to="/#visitanos" onClick={scrollToMap}>
                 Visítanos
               </Nav.Link>
@@ -74,7 +71,7 @@ function Layout() {
         <Outlet />
       </main>
 
-      {/* FOOTER SIMPLIFICADO (El mapa ahora está en el Home) */}
+      {/* FOOTER */}
       <footer className="footer-custom">
         <Container>
           <Row className="gy-4 justify-content-between align-items-center">
