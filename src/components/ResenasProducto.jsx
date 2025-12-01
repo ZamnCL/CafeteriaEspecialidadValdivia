@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Form, Badge, Modal, Image } from 'react-bootstrap';
+import { Card, Button, Form, Alert, Modal, Image } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
 import { useAuth } from '../context/AuthContext';
 import { FaStar, FaRegStar, FaUserCircle, FaCamera, FaTimes } from 'react-icons/fa';
@@ -11,7 +11,7 @@ const ResenasProducto = ({ idProducto }) => {
   
   const [puedeOpinar, setPuedeOpinar] = useState(false);
   const [yaOpino, setYaOpino] = useState(false);
-  const [verificando, setVerificando] = useState(false);
+  const [verificando, setVerificando] = useState(false); // eslint-disable-line no-unused-vars
 
   const [rating, setRating] = useState(5);
   const [titulo, setTitulo] = useState('');
@@ -23,8 +23,10 @@ const ResenasProducto = ({ idProducto }) => {
   const [imgModal, setImgModal] = useState(null);
 
   useEffect(() => {
-    cargarResenas();
-    if (user) verificarCompra();
+    if (idProducto) {
+      cargarResenas();
+      if (user) verificarCompra();
+    }
   }, [idProducto, user]);
 
   const cargarResenas = async () => {
@@ -36,9 +38,12 @@ const ResenasProducto = ({ idProducto }) => {
 
     if (data) {
       setResenas(data);
+      // --- CORRECCIÓN CRÍTICA: Evitar división por cero (NaN) ---
       if (data.length > 0) {
         const suma = data.reduce((acc, curr) => acc + curr.calificacion, 0);
         setPromedio((suma / data.length).toFixed(1));
+      } else {
+        setPromedio(0); // Si no hay reseñas, el promedio es 0, no NaN
       }
       
       if (user) {
@@ -106,22 +111,24 @@ const ResenasProducto = ({ idProducto }) => {
     } catch (err) { alert(err.message); } finally { setEnviando(false); }
   };
 
-  // CAMBIO: Color negro (#1a1a1a) para las estrellas
-  const renderEstrellas = (valor) => [...Array(5)].map((_, i) => (
-    <span key={i} style={{ color: valor >= i + 1 ? '#1a1a1a' : '#ccc' }}>
-      {valor >= i + 1 ? <FaStar /> : <FaRegStar />}
-    </span>
-  ));
+  const renderEstrellas = (valor) => {
+    // Protección extra: Si valor es NaN o inválido, asumimos 0
+    const val = isNaN(valor) ? 0 : Math.round(valor);
+    return [...Array(5)].map((_, i) => (
+      <span key={i} style={{ color: val >= i + 1 ? '#1a1a1a' : '#ccc' }}>
+        {val >= i + 1 ? <FaStar /> : <FaRegStar />}
+      </span>
+    ));
+  };
 
   return (
     <div className="mt-5 pt-4 border-top">
       <h3 className="mb-4 fw-bold text-coffee-title">Opiniones de Clientes</h3>
 
       <div className="d-flex align-items-center mb-4 gap-3">
-        <div className="display-4 fw-bold text-coffee-dark">{promedio}</div>
+        <div className="display-4 fw-bold text-coffee-dark">{promedio || '0.0'}</div>
         <div>
-          {/* Estrellas negras en el resumen */}
-          <div className="fs-5">{renderEstrellas(Math.round(promedio))}</div>
+          <div className="fs-5">{renderEstrellas(promedio)}</div>
           <small className="text-muted">{resenas.length} reseñas</small>
         </div>
       </div>
@@ -132,7 +139,6 @@ const ResenasProducto = ({ idProducto }) => {
             <h6 className="fw-bold mb-3">Escribe tu opinión</h6>
             <Form onSubmit={enviarResena}>
               <div className="mb-3">
-                {/* Estrellas negras en el formulario */}
                 {[1, 2, 3, 4, 5].map((star) => (
                   <span 
                     key={star} 
@@ -175,7 +181,6 @@ const ResenasProducto = ({ idProducto }) => {
               </div>
               <small className="text-muted">{new Date(r.fecha).toLocaleDateString()}</small>
             </div>
-            {/* Estrellas negras en lista */}
             <div className="my-1 fs-6">{renderEstrellas(r.calificacion)}</div>
             {r.titulo && <h6 className="fw-bold mt-2">{r.titulo}</h6>}
             <p className="text-muted mb-2 small">{r.comentario}</p>

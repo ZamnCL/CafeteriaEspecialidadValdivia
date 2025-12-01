@@ -298,8 +298,12 @@ function MiCuenta() {
       {/* NUEVO MODAL DE RESEÑA CON TÍTULO E IMÁGENES */}
       <Modal show={showResenaModal} onHide={() => setShowResenaModal(false)} centered contentClassName="miCuenta-card border-0" size="lg">
         <div className="p-4">
-          <Modal.Header closeButton className="miCuenta-card-header border-secondary pt-0 px-0">
-            <Modal.Title className="miCuenta-title fs-4">Opinar sobre <span className="text-coffee-accent">{reseñaData.nombre_producto}</span></Modal.Title>
+          {/* CORRECCIÓN 2: Header con botón de cierre personalizado beige */}
+          <Modal.Header className="miCuenta-card-header border-secondary pt-0 px-0">
+            <div className="d-flex justify-content-between align-items-center w-100">
+                <Modal.Title className="miCuenta-title fs-4">Opinar sobre <span className="text-coffee-accent">{reseñaData.nombre_producto}</span></Modal.Title>
+                <FaTimes onClick={() => setShowResenaModal(false)} style={{color: '#C9A97E', cursor: 'pointer', fontSize: '1.5rem'}} />
+            </div>
           </Modal.Header>
           <Modal.Body className="px-0">
             <Form>

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabase/cliente';
 import { useNavigate } from 'react-router-dom';
 import emailjs from '@emailjs/browser';
-import { FaTruck, FaStore, FaClock, FaInfoCircle } from 'react-icons/fa';
+import { FaTruck, FaStore, FaClock, FaInfoCircle, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
 
 const REGIONES_CHILE = [
   "Arica y Parinacota", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo", 
@@ -16,38 +16,25 @@ const REGIONES_CHILE = [
 // --- FUNCIÓN DE VALIDACIÓN DE RUT (Módulo 11) ---
 const validarRut = (rut) => {
   if (!rut) return false;
-  
-  // 1. Limpiar guiones y puntos, y dejar en minúscula
   const valor = rut.replace(/[^0-9kK]/g, '').toLowerCase();
-  
-  // 2. Validar largo mínimo (al menos 1 millón: 7 dígitos + dv = 8 caracteres)
   if (valor.length < 8 || valor.length > 9) return false;
-
-  // 3. Separar cuerpo y dígito verificador
   const cuerpo = valor.slice(0, -1);
   const dv = valor.slice(-1);
-
-  // 4. Validar que el cuerpo sean solo números
   if (!/^[0-9]+$/.test(cuerpo)) return false;
-
-  // 5. Calcular Dígito Verificador (Módulo 11)
   let suma = 0;
   let multiplo = 2;
-
   for (let i = cuerpo.length - 1; i >= 0; i--) {
     suma += parseInt(cuerpo.charAt(i)) * multiplo;
     if (multiplo < 7) multiplo += 1; else multiplo = 2;
   }
-
   const dvEsperado = 11 - (suma % 11);
   const dvFinal = (dvEsperado === 11) ? '0' : (dvEsperado === 10) ? 'k' : dvEsperado.toString();
-
-  // 6. Comparar
   return dv === dvFinal;
 };
 
 function Checkout() {
-  const { cart, getCartTotal, clearCart } = useCart();
+  // IMPORTANTE: Traemos removeFromCart para poder solucionar problemas de stock aquí mismo
+  const { cart, getCartTotal, clearCart, removeFromCart } = useCart();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   
@@ -55,6 +42,9 @@ function Checkout() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [tipoEntrega, setTipoEntrega] = useState('delivery'); 
+  
+  // Estado para guardar errores específicos de cada producto (ej: { "12-5": "Solo quedan 2" })
+  const [erroresStock, setErroresStock] = useState({});
 
   const [datosEnvio, setDatosEnvio] = useState({
     rut: '', email: '', direccion: '', ciudad: '', region: '', telefono: ''
@@ -72,6 +62,11 @@ function Checkout() {
 
   useEffect(() => { if (user?.email) setDatosEnvio(prev => ({ ...prev, email: user.email })); }, [user]);
 
+  // Limpiar errores de stock si el carrito cambia (ej: si el usuario elimina el producto problemático)
+  useEffect(() => {
+    setErroresStock({});
+  }, [cart]);
+
   const totalProductos = getCartTotal();
   const costoEnvio = tipoEntrega === 'retiro' ? 0 : 5000; 
   const totalFinal = totalProductos + costoEnvio;
@@ -80,25 +75,16 @@ function Checkout() {
   if (cart.length === 0) return <Container className="mt-5 text-center"><h2>El carrito está vacío</h2></Container>;
 
   const handleFileChange = (e) => { if (e.target.files && e.target.files[0]) setFile(e.target.files[0]); };
-  
-  // Manejador genérico para otros inputs
   const handleInputChange = (e) => { setDatosEnvio({ ...datosEnvio, [e.target.name]: e.target.value }); };
 
-  // --- NUEVO MANEJADOR ESPECÍFICO PARA RUT ---
   const handleRutChange = (e) => {
     let val = e.target.value;
-    
-    // 1. Permitir solo números y la letra K
     val = val.replace(/[^0-9kK]/g, '');
-    
-    // 2. Limitar el largo a 9 caracteres (Ej: 12345678k)
     if (val.length > 9) return;
-
     setDatosEnvio({ ...datosEnvio, rut: val });
   };
 
   const enviarNotificacionCorreo = (ordenId) => {
-    // ⚠️ TUS CLAVES
     const serviceID = 'service_94ynerp'; 
     const templateID = 'template_feryfg1'; 
     const publicKey = 'BBJajnSVNxciJjOo3';
@@ -109,9 +95,18 @@ function Checkout() {
     }).join('');
 
     const direccionFinal = tipoEntrega === 'retiro' ? 'RETIRO EN TIENDA' : `${datosEnvio.direccion}, ${datosEnvio.ciudad}, ${datosEnvio.region}`;
+    const nombreCliente = user.user_metadata?.nombre || user.email?.split('@')[0] || "Cliente";
 
     const templateParams = {
-      to_name: user.user_metadata?.nombre || "Cliente", to_email: datosEnvio.email, order_id: ordenId, total: totalFinal.toLocaleString('es-CL'), tabla_productos: itemsHtml, customer_address: direccionFinal, customer_phone: datosEnvio.telefono, rut_cliente: datosEnvio.rut, tipo_entrega: tipoEntrega === 'retiro' ? 'Retiro en Tienda' : 'Envío a Domicilio'
+      to_name: nombreCliente,
+      to_email: datosEnvio.email, 
+      order_id: ordenId, 
+      total: totalFinal.toLocaleString('es-CL'), 
+      tabla_productos: itemsHtml, 
+      customer_address: direccionFinal, 
+      customer_phone: datosEnvio.telefono, 
+      rut_cliente: datosEnvio.rut, 
+      tipo_entrega: tipoEntrega === 'retiro' ? 'Retiro en Tienda' : 'Envío a Domicilio'
     };
 
     emailjs.send(serviceID, templateID, templateParams, publicKey).catch(err => console.error(err));
@@ -119,19 +114,16 @@ function Checkout() {
 
   const procesarCompra = async (e) => {
     e.preventDefault();
-    setMsg({ type: '', text: '' }); // Limpiar mensajes previos
+    setMsg({ type: '', text: '' });
+    setErroresStock({}); // Reiniciar errores
 
-    // VALIDACIÓN DE RUT
     if (!datosEnvio.rut) return setMsg({ type: 'warning', text: 'El RUT es obligatorio.' });
-    if (!validarRut(datosEnvio.rut)) {
-        return setMsg({ type: 'warning', text: 'El RUT ingresado no es válido. Revisa el dígito verificador.' });
-    }
-
+    if (!validarRut(datosEnvio.rut)) return setMsg({ type: 'warning', text: 'El RUT ingresado no es válido.' });
     if (!datosEnvio.email) return setMsg({ type: 'warning', text: 'El Email es obligatorio.' });
     
     if (tipoEntrega === 'delivery') {
       if (!datosEnvio.direccion || !datosEnvio.ciudad || !datosEnvio.region) {
-        return setMsg({ type: 'warning', text: 'Para envíos, debes completar Dirección, Ciudad y Región.' });
+        return setMsg({ type: 'warning', text: 'Para envíos, completa Dirección, Ciudad y Región.' });
       }
     }
 
@@ -140,6 +132,38 @@ function Checkout() {
     setLoading(true);
 
     try {
+      // --- VALIDACIÓN DE STOCK MASIVA ---
+      const nuevosErrores = {};
+      let hayErrorStock = false;
+
+      for (const item of cart) {
+        if (!item.reserva) { 
+            const { data: formatoDb, error: stockError } = await supabase
+              .from('formatos')
+              .select('stock')
+              .eq('id_formato', item.id_formato)
+              .single();
+            
+            if (stockError || !formatoDb) {
+                nuevosErrores[`${item.id_producto}-${item.id_formato}`] = "Error al verificar stock.";
+                hayErrorStock = true;
+            } else if (formatoDb.stock < item.cantidad) {
+                // Guardamos el error específico para este ítem
+                nuevosErrores[`${item.id_producto}-${item.id_formato}`] = `Solo quedan ${formatoDb.stock} unidades.`;
+                hayErrorStock = true;
+            }
+        }
+      }
+
+      // Si encontramos algún problema, detenemos todo PERO mostramos dónde está el error
+      if (hayErrorStock) {
+          setErroresStock(nuevosErrores);
+          setLoading(false);
+          setMsg({ type: 'danger', text: 'Hay productos sin stock suficiente. Revísalos en tu resumen.' });
+          return; // <--- DETENEMOS AQUÍ SIN CRASHEAR
+      }
+
+      // --- FLUJO NORMAL DE COMPRA ---
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}_${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from('comprobantes').upload(fileName, file);
@@ -162,13 +186,13 @@ function Checkout() {
       clearCart();
       navigate('/compra-exitosa');
 
-    } catch (error) { setMsg({ type: 'danger', text: error.message }); } finally { setLoading(false); }
+    } catch (error) { setMsg({ type: 'danger', text: error.message }); setLoading(false); }
   };
 
   return (
     <Container className="my-5">
       <h2 className="mb-4 fw-bold text-coffee-title">Finalizar Compra</h2>
-      {msg.text && <Alert variant={msg.type}>{msg.text}</Alert>}
+      {msg.text && <Alert variant={msg.type} className="animate-fade-in shadow-sm">{msg.text}</Alert>}
       
       {tienePreparaciones && (
         <Alert variant="warning" className="d-flex align-items-center mb-4 border-0 shadow-sm">
@@ -179,7 +203,6 @@ function Checkout() {
 
       <Row>
         <Col md={7}>
-          
           <Card className="mb-4 shadow-sm border-0">
             <Card.Header className="bg-white fw-bold">1. Método de Entrega</Card.Header>
             <Card.Body>
@@ -221,24 +244,14 @@ function Checkout() {
               <Form>
                 <Row>
                   <Col md={6}><Form.Group className="mb-3"><Form.Label>Email de Contacto</Form.Label><Form.Control type="email" name="email" value={datosEnvio.email} onChange={handleInputChange} required /></Form.Group></Col>
-                  
-                  {/* INPUT RUT CON VALIDACIÓN */}
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>RUT (Sin puntos ni guión)</Form.Label>
-                      <Form.Control 
-                        type="text" 
-                        name="rut" 
-                        placeholder="Ej: 12345678k" 
-                        value={datosEnvio.rut} 
-                        onChange={handleRutChange} // Usamos el nuevo handler
-                        required 
-                      />
+                      <Form.Control type="text" name="rut" placeholder="Ej: 12345678k" value={datosEnvio.rut} onChange={handleRutChange} required />
                       <Form.Text className="text-muted">Ej: 18555333k (Mínimo 8 caracteres)</Form.Text>
                     </Form.Group>
                   </Col>
                 </Row>
-                
                 <Row><Col><Form.Group className="mb-3"><Form.Label>Teléfono</Form.Label><Form.Control type="text" name="telefono" onChange={handleInputChange} required placeholder="+56 9..." /></Form.Group></Col></Row>
                 {tipoEntrega === 'delivery' && (
                   <div className="animate-fade-in">
@@ -275,12 +288,48 @@ function Checkout() {
             <Card.Header className="bg-dark text-white fw-bold">Resumen</Card.Header>
             <Card.Body>
               <ListGroup variant="flush" className="mb-3">
-                {cart.map((item, idx) => (
-                    <ListGroup.Item key={idx} className="d-flex justify-content-between px-0">
-                        <div><small className="fw-bold">{item.producto.nombre}</small><div className="text-muted small">{item.formato.nombre} x {item.cantidad}{item.reserva && <span className="d-block text-warning fw-bold">Retiro: {item.reserva.time}</span>}</div></div>
-                        <span>${(item.formato.precio * item.cantidad).toLocaleString('es-CL')}</span>
-                    </ListGroup.Item>
-                ))}
+                {cart.map((item, idx) => {
+                    const errorKey = `${item.id_producto}-${item.id_formato}`;
+                    const error = erroresStock[errorKey];
+
+                    return (
+                        <ListGroup.Item 
+                            key={idx} 
+                            className={`d-flex flex-column px-0 ${error ? 'bg-danger-subtle p-2 rounded mb-2 border border-danger' : ''}`}
+                        >
+                            <div className="d-flex justify-content-between w-100">
+                                <div>
+                                    <small className="fw-bold">{item.producto.nombre}</small>
+                                    <div className="text-muted small">{item.formato.nombre} x {item.cantidad}
+                                        {item.reserva && <span className="d-block text-warning fw-bold">Retiro: {item.reserva.time}</span>}
+                                    </div>
+                                </div>
+                                <div className="text-end">
+                                    <span>${(item.formato.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                    {/* BOTÓN ELIMINAR DIRECTO EN CHECKOUT */}
+                                    <Button 
+                                        variant="link" 
+                                        className="text-danger p-0 ms-2 align-top" 
+                                        size="sm"
+                                        onClick={() => removeFromCart(item.id_producto, item.id_formato, item.reserva)}
+                                        title="Quitar del pedido"
+                                    >
+                                        <FaTrash size={12}/>
+                                    </Button>
+                                </div>
+                            </div>
+                            
+                            {/* MENSAJE DE ERROR INLINE */}
+                            {error && (
+                                <div className="text-danger small mt-2 d-flex align-items-center fw-bold">
+                                    <FaExclamationTriangle className="me-2"/> 
+                                    {error}
+                                    <span className="ms-1 fw-normal text-dark">(Elimínalo o ajusta la cantidad en el carrito)</span>
+                                </div>
+                            )}
+                        </ListGroup.Item>
+                    );
+                })}
               </ListGroup>
               <div className="d-flex justify-content-between small text-muted mb-2"><span>Subtotal:</span><span>${totalProductos.toLocaleString('es-CL')}</span></div>
               <div className="d-flex justify-content-between small text-muted mb-3 border-bottom pb-3"><span>Envío:</span><span>{costoEnvio === 0 ? 'Gratis' : `$${costoEnvio.toLocaleString('es-CL')}`}</span></div>
