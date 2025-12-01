@@ -1,167 +1,157 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../supabase/cliente';
 import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
 
+export const useCart = () => useContext(CartContext);
+
 export const CartProvider = ({ children }) => {
-  const { user } = useAuth();
   const [cart, setCart] = useState([]);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (user) {
-      fetchCartFromDB(user.id);
+      fetchCart();
     } else {
-      const localCart = JSON.parse(localStorage.getItem('guest_cart')) || [];
-      setCart(localCart);
+      const storedCart = localStorage.getItem('guestCart');
+      if (storedCart) setCart(JSON.parse(storedCart));
     }
   }, [user]);
 
-  const fetchCartFromDB = async (userId) => {
-    // Obtenemos también la columna datos_reserva
-    const { data, error } = await supabase
-      .from('carrito_items')
-      .select('*, producto:productos(*), formato:formatos(*)')
-      .eq('user_id', userId);
-    
-    if (!error && data) {
-      // Mapeamos para que la app entienda 'reserva'
-      const formattedCart = data.map(item => ({
-        ...item,
-        reserva: item.datos_reserva 
-      }));
-      setCart(formattedCart);
+  const fetchCart = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('carrito_items')
+        .select(`
+          *,
+          producto:productos (*),
+          formato:formatos (*)
+        `)
+        .eq('user_id', user.id)
+        // SOLUCIÓN: Ordenamos por fecha de creación para que no se muevan
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Filtro de seguridad por si se borró un producto de la BD
+      const validItems = (data || []).filter(item => item.producto && item.formato);
+      
+      setCart(validItems);
+    } catch (error) {
+      console.error('Error fetching cart:', error);
     }
   };
 
-  // --- AGREGAR (Con soporte para Reserva) ---
-  const addToCart = async (producto, formatoId, formatoNombre, precio, cantidad = 1, reservationInfo = null) => {
-    
-    const newItem = {
-      id_producto: producto.id_producto,
-      id_formato: formatoId,
-      cantidad: cantidad,
-      producto: producto,
-      formato: { id_formato: formatoId, nombre: formatoNombre, precio: Number(precio) }, // Estructura segura
-      reserva: reservationInfo
-    };
-
-    // Helper para comparar si dos items son idénticos (incluyendo hora)
-    const itemsSonIguales = (item1, item2) => {
-      return item1.id_producto === item2.id_producto && 
-             item1.id_formato === item2.id_formato &&
-             JSON.stringify(item1.reserva) === JSON.stringify(item2.reserva);
+  const addToCart = async (producto, idFormato, nombreFormato, precio, cantidad, reservaData = null) => {
+    // Actualización optimista
+    const tempItem = { 
+        id_producto: producto.id_producto, 
+        id_formato: idFormato, 
+        cantidad, 
+        producto, 
+        formato: { id_formato: idFormato, nombre: nombreFormato, precio }, 
+        reserva: reservaData 
     };
 
     if (!user) {
-      setCart((prevCart) => {
-        const existingIndex = prevCart.findIndex(item => itemsSonIguales(item, newItem));
-        
-        let updatedCart;
-        if (existingIndex >= 0) {
-          updatedCart = [...prevCart];
-          updatedCart[existingIndex].cantidad += cantidad;
+      setCart(prev => {
+        const existingIdx = prev.findIndex(item => item.id_producto === tempItem.id_producto && item.id_formato === tempItem.id_formato);
+        let newCart = [...prev];
+        if (existingIdx > -1) {
+            newCart[existingIdx].cantidad += cantidad;
         } else {
-          updatedCart = [...prevCart, newItem];
+            newCart.push(tempItem);
         }
-        
-        localStorage.setItem('guest_cart', JSON.stringify(updatedCart));
-        return updatedCart;
+        localStorage.setItem('guestCart', JSON.stringify(newCart));
+        return newCart;
       });
     } else {
-      // Optimistic UI
-      setCart(prev => [...prev, newItem]); 
+      // Para usuario logueado
+      setCart(prev => {
+          // Verificamos si ya existe visualmente para no duplicar en UI
+          const exists = prev.some(item => item.id_producto === tempItem.id_producto && item.id_formato === tempItem.id_formato);
+          if (exists) {
+              return prev.map(item => item.id_producto === tempItem.id_producto && item.id_formato === tempItem.id_formato 
+                  ? { ...item, cantidad: item.cantidad + cantidad } 
+                  : item);
+          }
+          return [...prev, tempItem];
+      }); 
+      
+      // Lógica BD
+      const existingItem = cart.find(item => item.id_producto === producto.id_producto && item.id_formato === idFormato);
+      const nuevaCantidad = existingItem ? existingItem.cantidad + cantidad : cantidad;
 
-      // Guardar en Supabase
-      const { error } = await supabase.from('carrito_items').upsert({
-        user_id: user.id,
-        id_producto: producto.id_producto,
-        id_formato: formatoId,
-        cantidad: cantidad,
-        datos_reserva: reservationInfo // Guardamos la hora aquí
-      }, { 
-        onConflict: 'user_id, id_producto, id_formato' 
-      });
+      const { error } = await supabase
+        .from('carrito_items')
+        .upsert({ 
+          user_id: user.id, 
+          id_producto: producto.id_producto, 
+          id_formato: idFormato, 
+          cantidad: nuevaCantidad,
+          datos_reserva: reservaData 
+        });
 
-      if (error) console.error("Error DB:", error);
-      fetchCartFromDB(user.id);
+      if (!error) fetchCart();
     }
   };
 
-  // --- ELIMINAR ---
-  const removeFromCart = async (productoId, formatoId, reservationInfo = null) => {
-    setCart(prev => prev.filter(item => 
-      !(item.id_producto === productoId && 
-        item.id_formato === formatoId &&
-        JSON.stringify(item.reserva) === JSON.stringify(reservationInfo))
-    ));
-    
+  const removeFromCart = async (idProducto, idFormato, reserva = null) => {
+    const newCart = cart.filter(item => !(item.id_producto === idProducto && item.id_formato === idFormato));
+    setCart(newCart);
+
     if (!user) {
-      const currentCart = JSON.parse(localStorage.getItem('guest_cart')) || [];
-      const newCart = currentCart.filter(item => 
-        !(item.id_producto === productoId && 
-          item.id_formato === formatoId &&
-          JSON.stringify(item.reserva) === JSON.stringify(reservationInfo))
-      );
-      localStorage.setItem('guest_cart', JSON.stringify(newCart));
+      localStorage.setItem('guestCart', JSON.stringify(newCart));
     } else {
-      await supabase.from('carrito_items').delete().match({ 
-        user_id: user.id, 
-        id_producto: productoId, 
-        id_formato: formatoId 
-      });
+      await supabase
+        .from('carrito_items')
+        .delete()
+        .match({ user_id: user.id, id_producto: idProducto, id_formato: idFormato });
     }
   };
 
-  // --- ACTUALIZAR CANTIDAD ---
-  const updateQuantity = async (productId, formatId, newQuantity, reservationInfo = null) => {
-    setCart(currCart =>
-      currCart.map(item =>
-        item.id_producto === productId && 
-        item.id_formato === formatId &&
-        JSON.stringify(item.reserva) === JSON.stringify(reservationInfo)
-          ? { ...item, cantidad: newQuantity }
-          : item
-      )
-    );
+  const updateQuantity = async (idProducto, idFormato, quantity) => {
+    if (quantity < 1) return;
+    
+    // 1. Actualización Visual Inmediata (Mantiene el orden actual del array)
+    setCart(prev => prev.map(item => item.id_producto === idProducto && item.id_formato === idFormato ? { ...item, cantidad: quantity } : item));
 
-    if (user) {
-       await supabase.from('carrito_items').update({ cantidad: newQuantity }).match({ 
-        user_id: user.id, 
-        id_producto: productId, 
-        id_formato: formatId 
-      });
+    if (!user) {
+      const current = JSON.parse(localStorage.getItem('guestCart')) || [];
+      const updated = current.map(item => item.id_producto === idProducto && item.id_formato === idFormato ? { ...item, cantidad: quantity } : item);
+      localStorage.setItem('guestCart', JSON.stringify(updated));
     } else {
-      const currentCart = JSON.parse(localStorage.getItem('guest_cart')) || [];
-      const updated = currentCart.map(item =>
-        item.id_producto === productId && 
-        item.id_formato === formatId &&
-        JSON.stringify(item.reserva) === JSON.stringify(reservationInfo)
-          ? { ...item, cantidad: newQuantity }
-          : item
-      );
-      localStorage.setItem('guest_cart', JSON.stringify(updated));
+      // 2. Actualización BD
+      const { error } = await supabase
+        .from('carrito_items')
+        .update({ cantidad: quantity })
+        .match({ user_id: user.id, id_producto: idProducto, id_formato: idFormato });
+
+      // 3. Al refrescar, el .order('created_at') en fetchCart evitará que salten
+      if (!error) fetchCart();
     }
   };
 
   const clearCart = async () => {
     setCart([]);
     if (!user) {
-      localStorage.removeItem('guest_cart');
+      localStorage.removeItem('guestCart');
     } else {
       await supabase.from('carrito_items').delete().eq('user_id', user.id);
     }
   };
 
   const getCartTotal = () => {
-    return cart.reduce((total, item) => total + (item.formato.precio * item.cantidad), 0);
+    return cart.reduce((total, item) => {
+        const precio = item.formato?.precio || 0;
+        return total + (precio * item.cantidad);
+    }, 0);
   };
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, getCartTotal, updateQuantity }}>
+    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, getCartTotal }}>
       {children}
     </CartContext.Provider>
   );
 };
-
-export const useCart = () => useContext(CartContext);

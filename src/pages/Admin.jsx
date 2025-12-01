@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Container, Button, Card, Alert, Tab, Tabs, Nav, Modal, Table, Badge, InputGroup, Form } from 'react-bootstrap';
+import { Container, Card, Alert, Tab, Tabs, Nav, Modal, Table, Badge, InputGroup, Form, Button } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
-import { FaPlus, FaTrash, FaEdit, FaInfinity, FaSearch, FaEnvelope, FaBuilding, FaUser, FaChartBar, FaNewspaper, FaCheckCircle } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaEdit, FaInfinity, FaSearch, FaEnvelope, FaBuilding, FaUser, FaChartBar, FaNewspaper, FaCheckCircle, FaEye } from 'react-icons/fa';
 import './Admin.css';
 
-// Importar componentes
 import FormularioProductoAdmin from '../components/admin/FormularioProductoAdmin';
 import TablaVentasAdmin from '../components/admin/TablaVentasAdmin';
 import EstadisticasAdmin from '../components/admin/EstadisticasAdmin';
@@ -17,12 +16,10 @@ function Admin() {
   const [productoAEditar, setProductoAEditar] = useState(null);
   const [blogAEditar, setBlogAEditar] = useState(null);
   
-  // Filtros
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
   const [busqueda, setBusqueda] = useState(''); 
   const [filtroMensajes, setFiltroMensajes] = useState('todos');
 
-  // Datos
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [ventas, setVentas] = useState([]);
@@ -32,13 +29,15 @@ function Admin() {
   const [cargando, setCargando] = useState(true);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
 
-  // --- ESTADOS PARA EL TOAST (NOTIFICACIÓN) ---
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
-  // Modal Nueva Categoría
   const [mostrarModalCategoria, setMostrarModalCategoria] = useState(false);
   const [datosNuevaCategoria, setDatosNuevaCategoria] = useState({ nombre: '' });
+
+  // --- ESTADOS PARA VER MENSAJE COMPLETO ---
+  const [mostrarModalMensaje, setMostrarModalMensaje] = useState(false);
+  const [mensajeDetalle, setMensajeDetalle] = useState(null);
 
   useEffect(() => { cargarDatos(); }, []);
 
@@ -61,20 +60,16 @@ function Admin() {
       setBlogs(blogData || []);
 
     } catch (error) { 
-      console.error(error); 
       setMensaje({ tipo: 'danger', texto: 'Error cargando datos.' }); 
     } finally { 
       setCargando(false); 
     }
   };
 
-  // --- FUNCIONES PRODUCTOS ---
   const eliminarProducto = async (id) => { 
     if(!confirm("¿Eliminar producto?")) return; 
     await supabase.from('productos').delete().eq('id_producto', id); 
     cargarDatos(); 
-    
-    // Notificación al eliminar también
     setToastMsg("Producto Eliminado");
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
@@ -87,12 +82,10 @@ function Admin() {
     setToastMsg(texto); 
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
-    
     cargarDatos(); 
     setVista('lista'); 
   };
 
-  // --- FUNCIONES BLOG ---
   const eliminarBlog = async (id) => { 
       if(!confirm("¿Eliminar esta entrada?")) return; 
       await supabase.from('blog').delete().eq('id', id); 
@@ -113,8 +106,13 @@ function Admin() {
       setVistaBlog('lista'); 
   };
 
-  // --- FUNCIONES OTROS ---
   const eliminarMensaje = async (id) => { if(!confirm("¿Eliminar este mensaje?")) return; const { error } = await supabase.from('mensajescontacto').delete().eq('id_mensaje', id); if (error) return alert("Error: " + error.message); cargarDatos(); };
+  
+  const verMensaje = (msg) => {
+    setMensajeDetalle(msg);
+    setMostrarModalMensaje(true);
+  };
+
   const obtenerNombreCategoria = (id) => categorias.find(c => c.id_categoria == id)?.nombre.toLowerCase() || '';
   const esPreparacion = (id) => { const n = obtenerNombreCategoria(id); return n.includes('preparación') || n.includes('filtrado') || n.includes('bebida') || n.includes('barra'); };
   
@@ -158,11 +156,9 @@ function Admin() {
   return (
     <Container className="my-5 position-relative">
       <h2 className="mb-4 text-coffee-title">Panel de Administración</h2>
-      
       {mensaje.texto && <Alert variant={mensaje.tipo} dismissible onClose={()=>setMensaje({})}>{mensaje.texto}</Alert>}
 
       <Tabs defaultActiveKey="dashboard" className="mb-4 main-tabs" variant="pills">
-        
         <Tab eventKey="dashboard" title={<span><FaChartBar className="me-2"/>Dashboard</span>}>
           <EstadisticasAdmin />
         </Tab>
@@ -202,7 +198,7 @@ function Admin() {
                   ))}</tbody>
                 </Table>
                 
-                {productosFiltrados.length === 0 && <div className="text-center py-5 text-muted">No se encontraron productos en esta sección.</div>}
+                {productosFiltrados.length === 0 && <div className="text-center py-5 text-muted">No se encontraron productos.</div>}
               </Card.Body>
             </Card>
           ) : (
@@ -219,7 +215,6 @@ function Admin() {
             <Card className="card-admin-dark border-0">
               <Card.Body className="p-4">
                 <div className="d-flex justify-content-between align-items-center mb-4">
-                  {/* CORRECCIÓN: Título uniforme */}
                   <h5 className="mb-0 text-coffee-title" style={{ color: 'var(--coffee-accent)' }}>Gestión de Blog</h5>
                   <button className="btn btn-coffee-pill shadow-none d-flex align-items-center gap-2" onClick={irACrearBlog}>
                     <FaPlus /> Nueva Historia
@@ -280,7 +275,6 @@ function Admin() {
         <Tab eventKey="mensajes" title="Mensajes">
           <Card className="card-admin-dark border-0">
             <Card.Body className="p-4">
-              {/* CORRECCIÓN: Título uniforme */}
               <h5 className="text-coffee-title mb-4" style={{ color: 'var(--coffee-accent)' }}>Mensajes de Contacto</h5>
               <Nav variant="pills" className="mb-4 nav-pills-coffee">
                 <Nav.Item><Nav.Link active={filtroMensajes === 'todos'} onClick={() => setFiltroMensajes('todos')}>Todos</Nav.Link></Nav.Item>
@@ -326,9 +320,8 @@ function Admin() {
                           </p>
                         </td>
                         <td className="text-end" style={{paddingRight: '1.5rem'}}>
-                          <Button size="sm" className="btn-action-pill delete" onClick={() => eliminarMensaje(m.id_mensaje)}>
-                            <FaTrash />
-                          </Button>
+                          <Button size="sm" className="me-2 btn-action-pill" onClick={() => verMensaje(m)}><FaEye /></Button>
+                          <Button size="sm" className="btn-action-pill delete" onClick={() => eliminarMensaje(m.id_mensaje)}><FaTrash /></Button>
                         </td>
                       </tr>
                     ))}
@@ -351,6 +344,34 @@ function Admin() {
           <Form.Group className="mb-3"><Form.Label className="text-white-50">Nombre</Form.Label><Form.Control value={datosNuevaCategoria.nombre} onChange={(e) => setDatosNuevaCategoria({nombre: e.target.value})} placeholder="Ej: Té" /></Form.Group>
           <Button className="btn-coffee-pill w-100 border-0" onClick={guardarCategoria}>Crear</Button>
         </Modal.Body>
+      </Modal>
+
+      {/* --- MODAL VER MENSAJE COMPLETO --- */}
+      <Modal show={mostrarModalMensaje} onHide={() => setMostrarModalMensaje(false)} centered contentClassName="card-admin-dark border-0">
+        <Modal.Header closeButton closeVariant="white" className="border-secondary">
+          <Modal.Title className="text-coffee-accent">Detalle del Mensaje</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="text-white">
+          {mensajeDetalle && (
+            <>
+              <p><strong>De:</strong> {mensajeDetalle.nombre_remitente} ({mensajeDetalle.correo_remitente})</p>
+              <p><strong>Fecha:</strong> {new Date(mensajeDetalle.fecha_envio).toLocaleString()}</p>
+              {mensajeDetalle.tipo === 'mayorista' && (
+                 <div className="p-2 mb-3 bg-warning bg-opacity-10 rounded border border-warning">
+                    <strong>Datos Empresa:</strong><br/>
+                    {mensajeDetalle.nombre_empresa}<br/>
+                    RUT: {mensajeDetalle.rut_empresa}<br/>
+                    Volumen: {mensajeDetalle.volumen_estimado}
+                 </div>
+              )}
+              <hr className="border-secondary"/>
+              <p style={{whiteSpace: 'pre-wrap'}}>{mensajeDetalle.mensaje}</p>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="border-secondary">
+          <Button variant="outline-light" onClick={() => setMostrarModalMensaje(false)}>Cerrar</Button>
+        </Modal.Footer>
       </Modal>
 
       <div className={`aesthetic-toast ${showToast ? 'show' : ''}`}>

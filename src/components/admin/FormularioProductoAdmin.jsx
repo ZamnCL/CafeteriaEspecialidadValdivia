@@ -23,7 +23,6 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
   
   const [formatoPersonalizado, setFormatoPersonalizado] = useState({ activo: false, nombre: '', precio: '', stock: 0 });
 
-  // --- HELPERS ---
   const obtenerNombreCategoria = (id) => categorias.find(c => c.id_categoria == id)?.nombre.toLowerCase() || '';
   
   const esCafeEnGrano = (id) => { 
@@ -36,15 +35,12 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
     return nombre.includes('preparación') || nombre.includes('filtrado') || nombre.includes('bebida') || nombre.includes('barra');
   };
 
-  // --- VARIABLES DERIVADAS (DEFINIDAS AL INICIO PARA EVITAR ERRORES) ---
-  // Esto soluciona el error "ReferenceError: esCafe is not defined"
   const esCafe = esCafeEnGrano(datosFormulario.id_categoria);
   const esPrep = esPreparacionFn(datosFormulario.id_categoria);
 
   const categoriasPreparaciones = categorias.filter(c => esPreparacionFn(c));
   const categoriasGenerales = categorias.filter(c => !esPreparacionFn(c));
 
-  // --- EFECTOS ---
   useEffect(() => {
     if (productoAEditar) {
       const esPrepActual = esPreparacionFn(productoAEditar.id_categoria);
@@ -56,7 +52,6 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
         unico_stock: productoAEditar.formatos?.[0]?.stock || 0 
       });
 
-      // Lógica para poblar formatos si es Café
       if (esCafeEnGrano(productoAEditar.id_categoria) && productoAEditar.formatos) {
           const nuevosFormatos = { 
               g250: { activo: false, precio: '', stock: 0 },
@@ -86,7 +81,6 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
     }
   }, [productoAEditar]);
 
-  // --- HANDLERS ---
   const manejarCambioInput = (e) => setDatosFormulario({ ...datosFormulario, [e.target.name]: e.target.value });
   
   const manejarCambioSelectorCategoria = (e) => {
@@ -127,9 +121,24 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
     e.preventDefault();
     if (!datosFormulario.id_categoria) return alert("Debes seleccionar una Categoría específica.");
     
-    // Usamos las variables locales para lógica interna
     const esCafeLocal = esCafeEnGrano(datosFormulario.id_categoria);
     const esPrepLocal = esPreparacionFn(datosFormulario.id_categoria);
+
+    // Validaciones
+    if (esCafeLocal) {
+        if (formatosEstandar.g250.activo && parseFloat(formatosEstandar.g250.precio) <= 0) return alert("El precio de 250g debe ser mayor a 0.");
+        if (formatosEstandar.g500.activo && parseFloat(formatosEstandar.g500.precio) <= 0) return alert("El precio de 500g debe ser mayor a 0.");
+        if (formatosEstandar.g1kg.activo && parseFloat(formatosEstandar.g1kg.precio) <= 0) return alert("El precio de 1kg debe ser mayor a 0.");
+        if (formatoPersonalizado.activo && parseFloat(formatoPersonalizado.precio) <= 0) return alert("El precio personalizado debe ser mayor a 0.");
+        
+        if (formatosEstandar.g250.activo && parseInt(formatosEstandar.g250.stock) < 0) return alert("El stock de 250g no puede ser negativo.");
+        if (formatosEstandar.g500.activo && parseInt(formatosEstandar.g500.stock) < 0) return alert("El stock de 500g no puede ser negativo.");
+        if (formatosEstandar.g1kg.activo && parseInt(formatosEstandar.g1kg.stock) < 0) return alert("El stock de 1kg no puede ser negativo.");
+        if (formatoPersonalizado.activo && parseInt(formatoPersonalizado.stock) < 0) return alert("El stock personalizado no puede ser negativo.");
+    } else if (!esPrepLocal) {
+        if (parseFloat(datosFormulario.unico_precio) <= 0) return alert("El precio debe ser mayor a 0.");
+        if (parseInt(datosFormulario.unico_stock) < 0) return alert("El stock no puede ser negativo.");
+    }
 
     try {
       const datosProducto = {
@@ -181,7 +190,6 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
         if (listaFormatos.length > 0) await supabase.from('formatos').insert(listaFormatos);
       }
       
-      // Enviamos mensaje personalizado al Admin.jsx para que muestre el Toast
       alExito(idProd && productoAEditar ? 'Producto Modificado' : 'Producto Creado');
     } catch (error) {
       alert("Error: " + error.message);
@@ -190,7 +198,10 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
 
   return (
     <Form onSubmit={manejarEnvio}>
-      <h5 className="text-coffee-accent mb-4">{productoAEditar ? 'Editar' : 'Nuevo'} Producto</h5>
+      {/* CAMBIO AQUÍ: Color beige forzado */}
+      <h5 className="mb-4" style={{ color: 'var(--coffee-accent)' }}>
+        {productoAEditar ? 'Editar' : 'Nuevo'} Producto
+      </h5>
       
       <Form.Group className="mb-4">
         <Form.Label className="text-white-50">Categoría</Form.Label>
@@ -234,10 +245,10 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
             <Col md={4}><Form.Group><Form.Label className="text-white-50">Estado</Form.Label><Form.Select name="estado" value={datosFormulario.estado} onChange={manejarCambioInput}><option>Publicado</option><option>Borrador</option></Form.Select></Form.Group></Col>
           </Row>
           
-          {/* Usamos la variable 'esCafe' definida al inicio */}
           {esCafe && (
             <div className="p-3 rounded mb-4 border border-secondary" style={{backgroundColor: 'rgba(255,255,255,0.05)'}}>
-                <h6 className="text-coffee-accent fw-bold mb-3">Datos del Café</h6>
+                {/* CAMBIO AQUÍ: Color beige forzado */}
+                <h6 className="fw-bold mb-3" style={{ color: 'var(--coffee-accent)' }}>Datos del Café</h6>
                 <Row className="mb-2">
                     <Col><Form.Control name="pais" value={datosFormulario.pais} onChange={manejarCambioInput} placeholder="País" /></Col>
                     <Col><Form.Control name="altura" value={datosFormulario.altura} onChange={manejarCambioInput} placeholder="Altura" /></Col>
@@ -261,7 +272,8 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
               {datosFormulario.imagen && !subiendo && <div className="mt-2"><img src={datosFormulario.imagen} alt="Previsualización" style={{height: '100px', borderRadius: '8px', border: '1px solid var(--coffee-accent)', objectFit: 'cover'}} /></div>}
           </Form.Group>
           
-          <h5 className="border-bottom border-secondary pb-2 mb-3 text-coffee-accent">Precios y Stock</h5>
+          {/* CAMBIO AQUÍ: Color beige forzado */}
+          <h5 className="border-bottom border-secondary pb-2 mb-3" style={{ color: 'var(--coffee-accent)' }}>Precios y Stock</h5>
           
           {esCafe ? (
             <div>

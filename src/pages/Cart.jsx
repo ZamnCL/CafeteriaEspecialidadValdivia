@@ -4,7 +4,8 @@ import CartItem from '../components/CartItem';
 import { Link } from 'react-router-dom';
 
 function Cart() {
-  const { cart, getCartTotal, clearCart } = useCart();
+  // Traemos las funciones updateQuantity y removeFromCart del contexto
+  const { cart, getCartTotal, clearCart, updateQuantity, removeFromCart } = useCart();
   const total = getCartTotal();
 
   if (cart.length === 0) {
@@ -31,7 +32,10 @@ function Cart() {
               {cart.map((item, idx) => (
                 <CartItem 
                     key={`${item.id_producto}-${item.id_formato}-${idx}`} 
-                    item={item} 
+                    item={item}
+                    // CORRECCIÓN: Pasamos las funciones al componente hijo
+                    onUpdateQuantity={updateQuantity}
+                    onRemove={removeFromCart}
                 />
               ))}
             </Card.Body>
@@ -59,7 +63,6 @@ function Cart() {
                 <span className="small fst-italic">Calculado en el siguiente paso</span>
               </div>
 
-              {/* TOTAL CON ESTILO SOLICITADO */}
               <div className="d-flex justify-content-between align-items-center pt-3 border-top mb-4">
                 <span className="fw-bold text-uppercase" style={{ color: '#C9A97E', letterSpacing: '1px' }}>
                   Total

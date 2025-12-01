@@ -50,7 +50,7 @@ function Layout() {
     }
   };
 
-  // ESTA ES LA FUNCIÓN CORRECTA QUE DEBE USARSE
+  // --- ESTA ES LA FUNCIÓN QUE EL CÓDIGO ESTABA BUSCANDO ---
   const irACategoria = (ruta, idCat) => {
     setShowTienda(false);
     setShowReserva(false);
@@ -109,7 +109,7 @@ function Layout() {
                 onClick={() => navigate('/catalogo')}
                 className="centered-dropdown"
               >
-                {/* AQUÍ ESTABA EL ERROR: Se cambió irACrear por irACategoria */}
+                {/* Corrección aquí: Usamos irACategoria */}
                 <NavDropdown.Item onClick={() => irACategoria('/catalogo', '')}>Ver Todo</NavDropdown.Item>
                 <NavDropdown.Divider />
                 {catsTienda.map(c => (
@@ -132,7 +132,7 @@ function Layout() {
                 onClick={() => navigate('/reserva')}
                 className="centered-dropdown"
               >
-                {/* AQUÍ TAMBIÉN: Se cambió irACrear por irACategoria */}
+                {/* Corrección aquí: Usamos irACategoria */}
                 <NavDropdown.Item onClick={() => irACategoria('/reserva', '')}>Ver Barra Completa</NavDropdown.Item>
                 <NavDropdown.Divider />
                 {catsReserva.map(c => (

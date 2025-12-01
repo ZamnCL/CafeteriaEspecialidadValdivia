@@ -19,7 +19,6 @@ function ProductoDetalle() {
   const [cantidad, setCantidad] = useState(1);
   const [showToast, setShowToast] = useState(false);
   
-  // Estado local para bloquear botones mientras se procesa "Comprar Ahora"
   const [procesandoCompra, setProcesandoCompra] = useState(false);
 
   const [fechaRetiro, setFechaRetiro] = useState('');
@@ -81,9 +80,10 @@ function ProductoDetalle() {
 
   const esPreparacion = () => {
     const cat = producto?.categoria?.nombre?.toLowerCase() || '';
+    // CORRECCIÓN: Se eliminó 'cafeteras' de la lista para que no pida hora
     return cat.includes('preparación') || cat.includes('bebida') || cat.includes('barra') || 
            cat.includes('pastelería') || cat.includes('sandwich') || cat.includes('métodos') || 
-           cat.includes('cafeteras') || cat.includes('servicio') || cat.includes('filtrado');
+           cat.includes('servicio') || cat.includes('filtrado');
   };
 
   const handleFechaChange = (e) => {
@@ -125,25 +125,26 @@ function ProductoDetalle() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  // --- FUNCIÓN CORREGIDA CON ASYNC/AWAIT ---
   const handleComprarAhora = async () => {
     if (!formatoActual) return;
     if (!esPreparacion() && (cantidad > stockActual || stockActual === 0)) return;
     if (!validarReserva()) return;
     
-    setProcesandoCompra(true); // Bloquear botones para evitar doble click
+    setProcesandoCompra(true);
 
     try {
-      // 1. Esperar a que el carrito se vacíe completamente en la BD
-      await clearCart(); 
-      
-      const reservaData = esPreparacion() ? { date: fechaRetiro, time: horaRetiro } : null;
-      
-      // 2. Esperar a que el nuevo producto se agregue
-      await addToCart(producto, formatoActual.id_formato, formatoActual.nombre, formatoActual.precio, cantidad, reservaData);
-      
-      // 3. Solo navegar cuando todo haya terminado
-      navigate('/checkout');
+      // NO borramos el carrito, enviamos el producto directo al checkout
+      // (Esto asume que tu Checkout.jsx soporta location.state como configuramos antes)
+      const itemDirecto = {
+        id_producto: producto.id_producto,
+        id_formato: formatoActual.id_formato,
+        cantidad: cantidad,
+        producto: producto,
+        formato: formatoActual,
+        reserva: esPreparacion() ? { date: fechaRetiro, time: horaRetiro } : null
+      };
+
+      navigate('/checkout', { state: { compraDirecta: [itemDirecto] } });
     } catch (error) {
       console.error("Error en comprar ahora:", error);
       setProcesandoCompra(false);
