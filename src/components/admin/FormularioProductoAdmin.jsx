@@ -60,15 +60,19 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
           };
           let nuevoPersonalizado = { activo: false, nombre: '', precio: '', stock: 0 };
 
+          // Filtrar solo los activos visualmente o mapearlos todos
           productoAEditar.formatos.forEach(f => {
+              // Si f.activo es false, lo marcamos como inactivo en el switch pero cargamos sus datos
+              const estaActivo = f.activo !== false; 
+
               if (f.nombre === '250g') {
-                  nuevosFormatos.g250 = { activo: true, precio: f.precio, stock: f.stock };
+                  nuevosFormatos.g250 = { activo: estaActivo, precio: f.precio, stock: f.stock };
               } else if (f.nombre === '500g') {
-                  nuevosFormatos.g500 = { activo: true, precio: f.precio, stock: f.stock };
+                  nuevosFormatos.g500 = { activo: estaActivo, precio: f.precio, stock: f.stock };
               } else if (f.nombre === '1kg') {
-                  nuevosFormatos.g1kg = { activo: true, precio: f.precio, stock: f.stock };
+                  nuevosFormatos.g1kg = { activo: estaActivo, precio: f.precio, stock: f.stock };
               } else {
-                  nuevoPersonalizado = { activo: true, nombre: f.nombre, precio: f.precio, stock: f.stock };
+                  nuevoPersonalizado = { activo: estaActivo, nombre: f.nombre, precio: f.precio, stock: f.stock };
               }
           });
           setFormatosEstandar(nuevosFormatos);
@@ -81,25 +85,15 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
     }
   }, [productoAEditar]);
 
+  // ... (Manejadores de inputs y subida de imagen se mantienen igual) ...
   const manejarCambioInput = (e) => setDatosFormulario({ ...datosFormulario, [e.target.name]: e.target.value });
-  
   const manejarCambioSelectorCategoria = (e) => {
     const valor = e.target.value;
-    if (valor === 'grupo_preparacion') {
-      setEsGrupoPreparacionSeleccionado(true);
-      setDatosFormulario({ ...datosFormulario, id_categoria: '' });
-    } else {
-      setEsGrupoPreparacionSeleccionado(false);
-      setDatosFormulario({ ...datosFormulario, id_categoria: valor });
-    }
+    if (valor === 'grupo_preparacion') { setEsGrupoPreparacionSeleccionado(true); setDatosFormulario({ ...datosFormulario, id_categoria: '' }); } 
+    else { setEsGrupoPreparacionSeleccionado(false); setDatosFormulario({ ...datosFormulario, id_categoria: valor }); }
   };
-
-  const manejarClickSubCategoria = (id) => {
-    setDatosFormulario({ ...datosFormulario, id_categoria: id });
-  };
-
+  const manejarClickSubCategoria = (id) => { setDatosFormulario({ ...datosFormulario, id_categoria: id }); };
   const manejarCambioEstandar = (clave, campo, valor) => setFormatosEstandar(prev => ({ ...prev, [clave]: { ...prev[clave], [campo]: valor } }));
-
   const manejarSubidaImagen = async (e) => {
     const archivo = e.target.files[0];
     if (!archivo) return;
@@ -110,11 +104,7 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
       if (errorSubida) throw errorSubida;
       const { data } = supabase.storage.from('imagenes-productos').getPublicUrl(nombreArchivo);
       setDatosFormulario(prev => ({ ...prev, imagen: data.publicUrl }));
-    } catch (error) {
-      alert("Error subida: " + error.message);
-    } finally {
-      setSubiendo(false);
-    }
+    } catch (error) { alert("Error subida: " + error.message); } finally { setSubiendo(false); }
   };
 
   const manejarEnvio = async (e) => {
@@ -151,41 +141,86 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
       let idProd = datosFormulario.id_producto;
 
       if (idProd) {
+        // ACTUALIZAR PRODUCTO
         const { error } = await supabase.from('productos').update(datosProducto).eq('id_producto', idProd);
         if (error) throw error;
 
+        // --- LÓGICA DE FORMATOS (SOFT DELETE / ACTIVACIÓN) ---
         if (esCafeLocal) {
-            await supabase.from('formatos').delete().eq('id_producto', idProd);
+            const { data: formatosExistentes } = await supabase.from('formatos').select('id_formato, nombre').eq('id_producto', idProd);
             
-            let listaFormatos = [];
-            if (formatosEstandar.g250.activo) listaFormatos.push({ id_producto: idProd, nombre: '250g', precio: parseFloat(formatosEstandar.g250.precio), stock: parseInt(formatosEstandar.g250.stock) });
-            if (formatosEstandar.g500.activo) listaFormatos.push({ id_producto: idProd, nombre: '500g', precio: parseFloat(formatosEstandar.g500.precio), stock: parseInt(formatosEstandar.g500.stock) });
-            if (formatosEstandar.g1kg.activo) listaFormatos.push({ id_producto: idProd, nombre: '1kg', precio: parseFloat(formatosEstandar.g1kg.precio), stock: parseInt(formatosEstandar.g1kg.stock) });
-            if (formatoPersonalizado.activo && formatoPersonalizado.nombre) {
-              listaFormatos.push({ id_producto: idProd, nombre: formatoPersonalizado.nombre, precio: parseFloat(formatoPersonalizado.precio), stock: parseInt(formatoPersonalizado.stock) });
+            const procesarFormato = async (nombre, datosUI) => {
+                const existente = formatosExistentes?.find(f => f.nombre === nombre);
+                
+                // Payload base
+                const payload = {
+                    id_producto: idProd,
+                    nombre: nombre,
+                    precio: parseFloat(datosUI.precio) || 0,
+                    stock: parseInt(datosUI.stock) || 0,
+                    activo: datosUI.activo // Guardamos el estado del switch (true/false)
+                };
+
+                if (existente) {
+                    // Si ya existe, actualizamos (incluso si activo=false)
+                    // Esto evita el error de FK porque no borramos, solo marcamos activo=false
+                    await supabase.from('formatos').update(payload).eq('id_formato', existente.id_formato);
+                } else if (datosUI.activo) {
+                    // Solo creamos nuevos si están activos
+                    await supabase.from('formatos').insert([payload]);
+                }
+            };
+
+            await procesarFormato('250g', formatosEstandar.g250);
+            await procesarFormato('500g', formatosEstandar.g500);
+            await procesarFormato('1kg', formatosEstandar.g1kg);
+
+            // Personalizado
+            if (formatoPersonalizado.nombre) {
+                const existente = formatosExistentes?.find(f => f.nombre === formatoPersonalizado.nombre);
+                const payload = {
+                    id_producto: idProd,
+                    nombre: formatoPersonalizado.nombre,
+                    precio: parseFloat(formatoPersonalizado.precio) || 0,
+                    stock: parseInt(formatoPersonalizado.stock) || 0,
+                    activo: formatoPersonalizado.activo
+                };
+                if (existente) {
+                    await supabase.from('formatos').update(payload).eq('id_formato', existente.id_formato);
+                } else if (formatoPersonalizado.activo) {
+                    await supabase.from('formatos').insert([payload]);
+                }
             }
-            if (listaFormatos.length > 0) await supabase.from('formatos').insert(listaFormatos);
 
         } else {
-           await supabase.from('formatos').update({ precio: parseFloat(datosFormulario.unico_precio), stock: esPrepLocal ? 99999 : parseInt(datosFormulario.unico_stock) }).eq('id_producto', idProd);
+           // Productos simples
+           const { data: formatoUnico } = await supabase.from('formatos').select('id_formato').eq('id_producto', idProd).limit(1).single();
+           if (formatoUnico) {
+               await supabase.from('formatos').update({ precio: parseFloat(datosFormulario.unico_precio), stock: esPrepLocal ? 99999 : parseInt(datosFormulario.unico_stock), activo: true }).eq('id_formato', formatoUnico.id_formato);
+           } else {
+               await supabase.from('formatos').insert([{ id_producto: idProd, nombre: esPrepLocal ? 'Estándar' : 'Unidad', precio: parseFloat(datosFormulario.unico_precio), stock: esPrepLocal ? 99999 : parseInt(datosFormulario.unico_stock), activo: true }]);
+           }
         }
 
       } else {
+        // CREAR NUEVO
         const { data: nuevo, error } = await supabase.from('productos').insert([datosProducto]).select().single();
         if (error) throw error;
         idProd = nuevo.id_producto;
+        
         let listaFormatos = [];
         if (esCafeLocal) {
-            if (formatosEstandar.g250.activo) listaFormatos.push({ id_producto: idProd, nombre: '250g', precio: parseFloat(formatosEstandar.g250.precio), stock: parseInt(formatosEstandar.g250.stock) });
-            if (formatosEstandar.g500.activo) listaFormatos.push({ id_producto: idProd, nombre: '500g', precio: parseFloat(formatosEstandar.g500.precio), stock: parseInt(formatosEstandar.g500.stock) });
-            if (formatosEstandar.g1kg.activo) listaFormatos.push({ id_producto: idProd, nombre: '1kg', precio: parseFloat(formatosEstandar.g1kg.precio), stock: parseInt(formatosEstandar.g1kg.stock) });
+            // Solo insertamos los que están activos al crear
+            if (formatosEstandar.g250.activo) listaFormatos.push({ id_producto: idProd, nombre: '250g', precio: parseFloat(formatosEstandar.g250.precio), stock: parseInt(formatosEstandar.g250.stock), activo: true });
+            if (formatosEstandar.g500.activo) listaFormatos.push({ id_producto: idProd, nombre: '500g', precio: parseFloat(formatosEstandar.g500.precio), stock: parseInt(formatosEstandar.g500.stock), activo: true });
+            if (formatosEstandar.g1kg.activo) listaFormatos.push({ id_producto: idProd, nombre: '1kg', precio: parseFloat(formatosEstandar.g1kg.precio), stock: parseInt(formatosEstandar.g1kg.stock), activo: true });
             if (formatoPersonalizado.activo && formatoPersonalizado.nombre) {
-              listaFormatos.push({ id_producto: idProd, nombre: formatoPersonalizado.nombre, precio: parseFloat(formatoPersonalizado.precio), stock: parseInt(formatoPersonalizado.stock) });
+              listaFormatos.push({ id_producto: idProd, nombre: formatoPersonalizado.nombre, precio: parseFloat(formatoPersonalizado.precio), stock: parseInt(formatoPersonalizado.stock), activo: true });
             }
         } else if (esPrepLocal) {
-            listaFormatos.push({ id_producto: idProd, nombre: 'Estándar', precio: parseFloat(datosFormulario.unico_precio), stock: 99999, controlar_stock: false });
+            listaFormatos.push({ id_producto: idProd, nombre: 'Estándar', precio: parseFloat(datosFormulario.unico_precio), stock: 99999, controlar_stock: false, activo: true });
         } else {
-            listaFormatos.push({ id_producto: idProd, nombre: 'Unidad', precio: parseFloat(datosFormulario.unico_precio), stock: parseInt(datosFormulario.unico_stock) });
+            listaFormatos.push({ id_producto: idProd, nombre: 'Unidad', precio: parseFloat(datosFormulario.unico_precio), stock: parseInt(datosFormulario.unico_stock), activo: true });
         }
         if (listaFormatos.length > 0) await supabase.from('formatos').insert(listaFormatos);
       }
@@ -198,10 +233,7 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
 
   return (
     <Form onSubmit={manejarEnvio}>
-      {/* CAMBIO AQUÍ: Color beige forzado */}
-      <h5 className="mb-4" style={{ color: 'var(--coffee-accent)' }}>
-        {productoAEditar ? 'Editar' : 'Nuevo'} Producto
-      </h5>
+      <h5 className="mb-4" style={{ color: 'var(--coffee-accent)' }}>{productoAEditar ? 'Editar' : 'Nuevo'} Producto</h5>
       
       <Form.Group className="mb-4">
         <Form.Label className="text-white-50">Categoría</Form.Label>
@@ -217,20 +249,7 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
           <Form.Label className="text-coffee-accent fw-bold mb-2">Tipo de preparación:</Form.Label>
           <div className="d-flex flex-wrap gap-2">
             {categoriasPreparaciones.map(c => (
-              <Button 
-                key={c.id_categoria}
-                variant="light"
-                onClick={() => manejarClickSubCategoria(c.id_categoria)}
-                className="fw-bold border-0"
-                disabled={!!productoAEditar}
-                style={{
-                  backgroundColor: datosFormulario.id_categoria == c.id_categoria ? '#c4a484' : '#e9ecef',
-                  color: datosFormulario.id_categoria == c.id_categoria ? '#fff' : '#495057',
-                  borderRadius: '6px',
-                  padding: '8px 16px',
-                  transition: 'all 0.2s'
-                }}
-              >
+              <Button key={c.id_categoria} variant="light" onClick={() => manejarClickSubCategoria(c.id_categoria)} className="fw-bold border-0" disabled={!!productoAEditar} style={{backgroundColor: datosFormulario.id_categoria == c.id_categoria ? '#c4a484' : '#e9ecef', color: datosFormulario.id_categoria == c.id_categoria ? '#fff' : '#495057', borderRadius: '6px', padding: '8px 16px', transition: 'all 0.2s'}}>
                 {c.nombre}
               </Button>
             ))}
@@ -247,7 +266,6 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
           
           {esCafe && (
             <div className="p-3 rounded mb-4 border border-secondary" style={{backgroundColor: 'rgba(255,255,255,0.05)'}}>
-                {/* CAMBIO AQUÍ: Color beige forzado */}
                 <h6 className="fw-bold mb-3" style={{ color: 'var(--coffee-accent)' }}>Datos del Café</h6>
                 <Row className="mb-2">
                     <Col><Form.Control name="pais" value={datosFormulario.pais} onChange={manejarCambioInput} placeholder="País" /></Col>
@@ -262,17 +280,8 @@ function FormularioProductoAdmin({ productoAEditar, categorias, alCancelar, alEx
           )}
 
           <Form.Group className="mb-3"><Form.Label className="text-white-50">Descripción</Form.Label><Form.Control as="textarea" name="descripcion" value={datosFormulario.descripcion} onChange={manejarCambioInput} /></Form.Group>
+          <Form.Group className="mb-4"><Form.Label className="text-white-50">Imagen</Form.Label><Form.Control type="file" accept="image/*" onChange={manejarSubidaImagen} disabled={subiendo} className="mb-2"/><Form.Control type="text" name="imagen" value={datosFormulario.imagen} onChange={manejarCambioInput} placeholder="URL de la imagen" style={{backgroundColor: 'rgba(0,0,0,0.3)', color: '#fff', border:'1px solid #555'}} className="input-placeholder-light"/><style>{`.input-placeholder-light::placeholder { color: rgba(255,255,255,0.5); }`}</style>{subiendo && <span className="text-warning small">Subiendo...</span>}{datosFormulario.imagen && !subiendo && <div className="mt-2"><img src={datosFormulario.imagen} alt="Previsualización" style={{height: '100px', borderRadius: '8px', border: '1px solid var(--coffee-accent)', objectFit: 'cover'}} /></div>}</Form.Group>
           
-          <Form.Group className="mb-4">
-              <Form.Label className="text-white-50">Imagen</Form.Label>
-              <Form.Control type="file" accept="image/*" onChange={manejarSubidaImagen} disabled={subiendo} className="mb-2"/>
-              <Form.Control type="text" name="imagen" value={datosFormulario.imagen} onChange={manejarCambioInput} placeholder="URL de la imagen" style={{backgroundColor: 'rgba(0,0,0,0.3)', color: '#fff', border:'1px solid #555'}} className="input-placeholder-light"/>
-              <style>{`.input-placeholder-light::placeholder { color: rgba(255,255,255,0.5); }`}</style>
-              {subiendo && <span className="text-warning small">Subiendo...</span>}
-              {datosFormulario.imagen && !subiendo && <div className="mt-2"><img src={datosFormulario.imagen} alt="Previsualización" style={{height: '100px', borderRadius: '8px', border: '1px solid var(--coffee-accent)', objectFit: 'cover'}} /></div>}
-          </Form.Group>
-          
-          {/* CAMBIO AQUÍ: Color beige forzado */}
           <h5 className="border-bottom border-secondary pb-2 mb-3" style={{ color: 'var(--coffee-accent)' }}>Precios y Stock</h5>
           
           {esCafe ? (

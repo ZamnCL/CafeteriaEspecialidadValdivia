@@ -6,7 +6,7 @@ import '../ProductCards.css';
 function ProductCard({ producto, isReserva, onShowToast }) {
   const { addToCart } = useCart();
 
-  const formatos = producto.formatos || [];
+  const formatos = (producto.formatos || []).filter(f => f.activo !== false);
   const precios = formatos.map(f => f.precio);
   const precioMinimo = precios.length > 0 ? Math.min(...precios) : 0;
   

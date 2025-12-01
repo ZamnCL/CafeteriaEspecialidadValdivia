@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Container, Row, Col, Image, Form, Button, Badge, Spinner, Alert, InputGroup } from 'react-bootstrap';
+import { Container, Row, Col, Image, Form, Button, Badge, Spinner, Alert } from 'react-bootstrap';
 import { supabase } from '../supabase/cliente';
 import { useCart } from '../context/CartContext';
 import { FaCheckCircle, FaShoppingCart, FaCreditCard, FaArrowLeft, FaClock, FaInfoCircle } from 'react-icons/fa';
@@ -10,7 +10,7 @@ import ResenasProducto from '../components/ResenasProducto';
 
 function ProductoDetalle() {
   const { id } = useParams();
-  const { addToCart, clearCart } = useCart();
+  const { addToCart } = useCart(); 
   const navigate = useNavigate();
 
   const [producto, setProducto] = useState(null);
@@ -25,6 +25,7 @@ function ProductoDetalle() {
   const [horaRetiro, setHoraRetiro] = useState('');
   const [errorReserva, setErrorReserva] = useState('');
 
+  // Generador de horarios (09:15 a 18:45)
   const generarHorarios = () => {
     const horarios = [];
     let hora = 9;
@@ -51,13 +52,23 @@ function ProductoDetalle() {
           .single();
 
         if (error) throw error;
+
+        // --- FILTRO IMPORTANTE: Solo formatos activos ---
+        if (data.formatos) {
+            data.formatos = data.formatos.filter(f => f.activo !== false);
+        }
+
         setProducto(data);
 
+        // Seleccionar el formato más barato por defecto
         if (data.formatos?.length > 0) {
           const ordenados = data.formatos.sort((a, b) => a.precio - b.precio);
           setSelectedFormatoId(ordenados[0].id_formato);
         }
+        
+        // Fecha por defecto: Hoy
         setFechaRetiro(new Date().toISOString().split('T')[0]);
+
       } catch (err) { console.error(err); } finally { setLoading(false); }
     };
     fetchProducto();
@@ -78,9 +89,10 @@ function ProductoDetalle() {
   const handleIncrementar = () => { if (esPreparacion() || cantidad < stockActual) setCantidad(c => c + 1); };
   const handleDecrementar = () => { setCantidad(c => Math.max(1, c - 1)); };
 
+  // --- LÓGICA CORREGIDA: Qué productos piden reserva ---
   const esPreparacion = () => {
     const cat = producto?.categoria?.nombre?.toLowerCase() || '';
-    // CORRECCIÓN: Se eliminó 'cafeteras' de la lista para que no pida hora
+    // NOTA: "cafeteras" eliminado de esta lista para que sea venta directa
     return cat.includes('preparación') || cat.includes('bebida') || cat.includes('barra') || 
            cat.includes('pastelería') || cat.includes('sandwich') || cat.includes('métodos') || 
            cat.includes('servicio') || cat.includes('filtrado');
@@ -102,9 +114,11 @@ function ProductoDetalle() {
   const validarReserva = () => {
     if (!esPreparacion()) return true; 
     if (!fechaRetiro || !horaRetiro) { setErrorReserva('Selecciona fecha y hora de retiro.'); return false; }
+    
     const fechaHoraUser = new Date(`${fechaRetiro}T${horaRetiro}`);
     const ahora = new Date();
     if (fechaHoraUser < ahora) { setErrorReserva('La hora seleccionada ya pasó.'); return false; }
+    
     const [h, m] = horaRetiro.split(':').map(Number);
     const minutosTotales = h * 60 + m;
     if (minutosTotales < 540 || minutosTotales > 1140) { 
@@ -119,12 +133,15 @@ function ProductoDetalle() {
     if (!formatoActual) return;
     if (!esPreparacion() && (cantidad > stockActual || stockActual === 0)) return;
     if (!validarReserva()) return;
+
     const reservaData = esPreparacion() ? { date: fechaRetiro, time: horaRetiro } : null;
     addToCart(producto, formatoActual.id_formato, formatoActual.nombre, formatoActual.precio, cantidad, reservaData);
+    
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
 
+  // --- COMPRA DIRECTA SIN BORRAR CARRITO ---
   const handleComprarAhora = async () => {
     if (!formatoActual) return;
     if (!esPreparacion() && (cantidad > stockActual || stockActual === 0)) return;
@@ -133,8 +150,7 @@ function ProductoDetalle() {
     setProcesandoCompra(true);
 
     try {
-      // NO borramos el carrito, enviamos el producto directo al checkout
-      // (Esto asume que tu Checkout.jsx soporta location.state como configuramos antes)
+      // Creamos el objeto ítem para enviarlo directo al Checkout
       const itemDirecto = {
         id_producto: producto.id_producto,
         id_formato: formatoActual.id_formato,
@@ -144,7 +160,9 @@ function ProductoDetalle() {
         reserva: esPreparacion() ? { date: fechaRetiro, time: horaRetiro } : null
       };
 
+      // Navegamos pasando el estado (Checkout.jsx debe leer location.state.compraDirecta)
       navigate('/checkout', { state: { compraDirecta: [itemDirecto] } });
+
     } catch (error) {
       console.error("Error en comprar ahora:", error);
       setProcesandoCompra(false);
@@ -159,50 +177,76 @@ function ProductoDetalle() {
       <Link to="/catalogo" className="text-decoration-none text-muted mb-4 d-inline-block fw-bold"><FaArrowLeft className="me-2"/> Volver a la Tienda</Link>
 
       <Row className="g-5">
+        {/* IMAGEN */}
         <Col lg={6}>
           <div className="product-detail-img-container animate-fade-in">
-            {producto.imagen ? <Image src={producto.imagen} alt={producto.nombre} fluid className="w-100 rounded-3" style={{ objectFit: 'cover', aspectRatio: '1/1' }}/> : <div className="bg-light d-flex align-items-center justify-content-center text-muted rounded-3" style={{ aspectRatio: '1/1' }}>SIN IMAGEN</div>}
+            {producto.imagen ? (
+                <Image src={producto.imagen} alt={producto.nombre} fluid className="w-100 rounded-3" style={{ objectFit: 'cover', aspectRatio: '1/1' }}/>
+            ) : (
+                <div className="bg-light d-flex align-items-center justify-content-center text-muted rounded-3" style={{ aspectRatio: '1/1' }}>SIN IMAGEN</div>
+            )}
           </div>
         </Col>
 
+        {/* INFO */}
         <Col lg={6}>
           <div className="ps-lg-4">
             <Badge bg="dark" text="white" className="mb-3 px-3 py-2 rounded-pill text-uppercase tracking-wider">{producto.categoria?.nombre}</Badge>
             <h1 className="display-5 detail-title mb-2">{producto.nombre}</h1>
             <div className="detail-price mb-4">${formatoActual?.precio?.toLocaleString() || '---'}</div>
 
+            {/* SELECTOR DE FORMATOS */}
             {producto.formatos?.length > 0 && (
               <Form.Group className="mb-4">
                 <Form.Label className="fw-bold small text-uppercase text-muted">Selecciona Opción:</Form.Label>
                 <div className="d-flex flex-wrap gap-2">
                   {producto.formatos.sort((a, b) => a.precio - b.precio).map(f => (
-                    <Button key={f.id_formato} variant={parseInt(selectedFormatoId) === f.id_formato ? "dark" : "outline-secondary"} className="rounded-pill px-4" onClick={() => { setSelectedFormatoId(f.id_formato); setCantidad(1); }}>{f.nombre}</Button>
+                    <Button 
+                        key={f.id_formato} 
+                        variant={parseInt(selectedFormatoId) === f.id_formato ? "dark" : "outline-secondary"} 
+                        className="rounded-pill px-4" 
+                        onClick={() => { setSelectedFormatoId(f.id_formato); setCantidad(1); }}
+                    >
+                        {f.nombre}
+                    </Button>
                   ))}
                 </div>
               </Form.Group>
             )}
 
+            {/* FORMULARIO DE RESERVA (Solo si es preparación) */}
             {esPreparacion() && (
               <div className="p-3 mb-4 rounded border border-warning bg-light animate-fade-in">
                 <h6 className="fw-bold text-coffee mb-3 d-flex align-items-center"><FaClock className="me-2"/> Programa tu retiro</h6>
                 <Row className="g-2">
-                  <Col xs={6}><Form.Control type="date" value={fechaRetiro} onChange={handleFechaChange} min={new Date().toISOString().split('T')[0]} /></Col>
-                  <Col xs={6}><Form.Control type="time" list="horarios-sugeridos" value={horaRetiro} onChange={(e) => setHoraRetiro(e.target.value)} /><datalist id="horarios-sugeridos">{listaHorarios.map(h => (<option key={h} value={h} />))}</datalist></Col>
+                  <Col xs={6}>
+                      <Form.Control type="date" value={fechaRetiro} onChange={handleFechaChange} min={new Date().toISOString().split('T')[0]} />
+                  </Col>
+                  <Col xs={6}>
+                      <Form.Control type="time" list="horarios-sugeridos" value={horaRetiro} onChange={(e) => setHoraRetiro(e.target.value)} />
+                      <datalist id="horarios-sugeridos">{listaHorarios.map(h => (<option key={h} value={h} />))}</datalist>
+                  </Col>
                 </Row>
                 {errorReserva && <Alert variant="danger" className="mt-2 py-2 small mb-0">{errorReserva}</Alert>}
                 <div className="small text-muted mt-2 fst-italic">* Horario Lun-Vie de 09:00 a 19:00 hrs.</div>
               </div>
             )}
 
+            {/* SELECTOR DE CANTIDAD */}
             <div className="d-flex align-items-center gap-3 mb-4">
               <div className="quantity-selector">
                 <button className="btn-quantity" onClick={handleDecrementar}>-</button>
                 <input type="number" className="quantity-input" value={cantidad} onChange={handleCantidadChange} min="1" max={!esPreparacion() ? stockActual : 99} disabled={!esPreparacion() && stockActual === 0} />
                 <button className="btn-quantity" onClick={handleIncrementar}>+</button>
               </div>
-              {!esPreparacion() && (<span className={`small fw-bold ${stockActual > 0 ? 'text-success' : 'text-danger'}`}>{stockActual > 0 ? `${stockActual} disponibles` : 'Agotado'}</span>)}
+              {!esPreparacion() && (
+                 <span className={`small fw-bold ${stockActual > 0 ? 'text-success' : 'text-danger'}`}>
+                   {stockActual > 0 ? `${stockActual} disponibles` : 'Agotado'}
+                 </span>
+              )}
             </div>
 
+            {/* BOTONES DE ACCIÓN */}
             <div className="d-grid gap-3 d-md-flex mb-5">
               <Button 
                 className="btn-add-cart rounded-pill px-4 py-3 flex-grow-1 fw-bold" 
@@ -221,6 +265,7 @@ function ProductoDetalle() {
               </Button>
             </div>
 
+            {/* DESCRIPCIÓN Y FICHA TÉCNICA (Unificado) */}
             <div className="bg-light p-4 rounded-4 border">
                 <h5 className="fw-bold mb-3 text-coffee-dark"><FaInfoCircle className="me-2"/> Información del Producto</h5>
                 <p className="text-muted" style={{lineHeight: '1.7'}}>{descripcionMostrar || 'Sin descripción disponible.'}</p>
@@ -243,9 +288,19 @@ function ProductoDetalle() {
         </Col>
       </Row>
 
-      <Row><Col lg={12}><ResenasProducto idProducto={producto.id_producto} /></Col></Row>
+      <Row>
+        <Col lg={12}>
+           <ResenasProducto idProducto={producto.id_producto} />
+        </Col>
+      </Row>
 
-      <div className={`aesthetic-toast ${showToast ? 'show' : ''}`}><FaCheckCircle className="text-success fs-4" /><div><div className="fw-bold">¡Añadido al carro!</div><small className="text-white-50">{producto.nombre} {horaRetiro ? `(Retiro: ${horaRetiro})` : ''} x{cantidad}</small></div></div>
+      <div className={`aesthetic-toast ${showToast ? 'show' : ''}`}>
+        <FaCheckCircle className="text-success fs-4" />
+        <div>
+          <div className="fw-bold">¡Añadido al carro!</div>
+          <small className="text-white-50">{producto.nombre} {horaRetiro ? `(Retiro: ${horaRetiro})` : ''} x{cantidad}</small>
+        </div>
+      </div>
     </Container>
   );
 }
