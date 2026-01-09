@@ -18,7 +18,7 @@ serve(async (req) => {
     const { items, orderId, userEmail } = await req.json();
 
     // 1. IMPORTANTE: Reemplaza esto con TU URL DE VERCEL (sin barra al final)
-    const BASE_URL = 'https://cafeteria-especialidad-valdivia-git-desarrollo-zamncls-projects.vercel.app/'; 
+    const BASE_URL = 'https://cafeteria-especialidad-valdivia-git-desarrollo-zamncls-projects.vercel.app'; 
 
     const mpItems = items.map((item: any) => ({
       title: `${item.producto.nombre.substring(0, 200)}`,
