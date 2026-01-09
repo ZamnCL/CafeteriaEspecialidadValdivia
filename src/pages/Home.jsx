@@ -3,7 +3,8 @@ import { Container, Row, Col, Spinner, Image, Card } from 'react-bootstrap';
 import { Link, useLocation } from 'react-router-dom';
 import { supabase } from '../supabase/cliente';
 import ProductCarousel from '../components/ProductCarousel';
-import heroBackground from '../assets/hero_background.png';
+// CORRECCIÓN AQUÍ: Usamos ruta absoluta (/src/...) para evitar errores de ruta
+import heroBackground from '/src/assets/hero_background.png'; 
 import { FaFlask, FaAward, FaLeaf, FaMapMarkerAlt, FaClock, FaPhone, FaEnvelope } from 'react-icons/fa';
 
 function Home() {
@@ -12,7 +13,6 @@ function Home() {
   const [loading, setLoading] = useState(true);
   
   // --- DATOS POR DEFECTO CON MAPA SEGURO ---
-  // Usamos este formato ?q=DIRECCION&output=embed que Google siempre permite
   const [infoLocal, setInfoLocal] = useState({
     direccion: 'Av. Pedro Aguirre Cerda 2115, Valdivia',
     telefono: '+56 63 222 3344',
@@ -58,9 +58,7 @@ function Home() {
                 if (match && match[1]) mapaUrl = match[1];
             }
 
-            // 2. Validación de Seguridad:
-            // Si el link de la base de datos NO tiene "embed", Google lo bloqueará.
-            // En ese caso, forzamos el link por defecto que sabemos que funciona.
+            // 2. Validación de Seguridad
             const esLinkSeguro = mapaUrl && (mapaUrl.includes('embed') || mapaUrl.includes('output=embed'));
 
             setInfoLocal(prev => ({

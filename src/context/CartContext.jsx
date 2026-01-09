@@ -25,11 +25,10 @@ export const CartProvider = ({ children }) => {
         .from('carrito_items')
         .select(`
           *,
-          producto:productos (*),
+          producto:productos (*, categoria ( nombre ) ), 
           formato:formatos (*)
         `)
         .eq('user_id', user.id)
-        // SOLUCIÓN: Ordenamos por fecha de creación para que no se muevan
         .order('created_at', { ascending: true });
 
       if (error) throw error;

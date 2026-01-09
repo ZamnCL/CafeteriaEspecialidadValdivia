@@ -1,32 +1,78 @@
-import { Container, Card, Button } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
-import { FaCheckCircle } from 'react-icons/fa';
+import { useEffect, useState } from 'react';
+import { Container, Card, Button, Alert, Spinner } from 'react-bootstrap';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { supabase } from '../supabase/cliente';
+import { useCart } from '../context/CartContext';
+import { FaCheckCircle, FaHome } from 'react-icons/fa';
 
 function CompraExitosa() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { clearCart } = useCart();
+  
+  const status = searchParams.get('status'); // 'approved', 'failure', etc.
+  const externalReference = searchParams.get('external_reference'); // ID de la orden
+  const paymentId = searchParams.get('payment_id'); // ID de transacción MP
+
+  const [procesando, setProcesando] = useState(false);
+  const [mensaje, setMensaje] = useState('');
+
+  useEffect(() => {
+    const confirmarPago = async () => {
+      // Si viene con status 'approved' y tenemos ID de orden, actualizamos
+      if (status === 'approved' && externalReference) {
+        setProcesando(true);
+        
+        const { error } = await supabase
+          .from('ordenes')
+          .update({ 
+            estado: 'Pagado', 
+            nro_transaccion: paymentId || 'MP_Transaction'
+          })
+          .eq('id_orden', externalReference);
+
+        if (!error) {
+          // Vaciamos carrito solo si todo salió bien
+          clearCart();
+          setMensaje('¡Pago confirmado exitosamente!');
+        } else {
+          setMensaje('Pago recibido, pero hubo un error actualizando la orden. Contáctanos.');
+        }
+        setProcesando(false);
+      }
+    };
+
+    confirmarPago();
+  }, [status, externalReference]);
+
   return (
-    <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '80vh' }}>
-      <Card className="text-center p-5 shadow-lg border-0 animate-fade-in" style={{ borderRadius: '24px', maxWidth: '500px', backgroundColor: '#fff' }}>
+    <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+      <Card className="text-center shadow p-5 border-0" style={{ maxWidth: '500px' }}>
         <Card.Body>
-          <div className="mb-4">
-            <FaCheckCircle className="text-success" style={{ fontSize: '5rem' }} />
-          </div>
-          <h2 className="mb-3 fw-bold" style={{ color: 'var(--coffee-dark)' }}>¡Solicitud Recibida!</h2>
-          <p className="text-muted mb-4 fs-5">
-            Hemos recibido tu comprobante. <br/>
-            <span className="fw-bold" style={{ color: 'var(--coffee-light)' }}>En breve recibirás un correo</span> con la confirmación de tu pedido una vez validemos el pago.
-          </p>
-          <div className="d-grid gap-3">
-            <Link to="/mi-cuenta" className="text-decoration-none">
-              <Button variant="dark" size="lg" className="w-100 rounded-pill btn-coffee-pill border-0">
-                Ver Estado de mi Pedido
+          {procesando ? (
+            <>
+              <Spinner animation="border" variant="success" className="mb-3" />
+              <h4>Confirmando tu pago...</h4>
+              <p>Por favor no cierres esta ventana.</p>
+            </>
+          ) : (
+            <>
+              <FaCheckCircle className="text-success mb-3" size={60} />
+              <h2 className="mb-3 fw-bold">¡Gracias por tu compra!</h2>
+              
+              {status === 'approved' && (
+                <Alert variant="success">
+                    {mensaje || 'Tu pedido ha sido pagado y registrado correctamente.'}
+                </Alert>
+              )}
+
+              <p className="text-muted">Hemos recibido tu pedido. Te enviaremos un correo con los detalles.</p>
+              
+              <Button variant="dark" className="mt-3 px-4 rounded-pill" onClick={() => navigate('/')}>
+                <FaHome className="me-2" /> Volver al Inicio
               </Button>
-            </Link>
-            <Link to="/" className="text-decoration-none">
-              <Button variant="outline-dark" size="lg" className="w-100 rounded-pill">
-                Volver al Inicio
-              </Button>
-            </Link>
-          </div>
+            </>
+          )}
         </Card.Body>
       </Card>
     </Container>
