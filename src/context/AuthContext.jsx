@@ -5,41 +5,63 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null); // <--- NUEVO ESTADO PARA EL ROL
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      await handleUserSession(session); // Usamos una función auxiliar
-    };
-    getSession();
+    const initializeAuth = async () => {
+      try {
+        console.log('🔐 Inicializando autenticación...');
+        const { data: { session }, error } = await supabase.auth.getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      handleUserSession(session);
+        if (error) {
+          console.error('❌ Error al obtener sesión:', error);
+        } else if (session) {
+          console.log('✅ Sesión recuperada:', session.user.email);
+        } else {
+          console.log('ℹ️ No hay sesión activa');
+        }
+
+        await handleUserSession(session);
+      } catch (error) {
+        console.error('❌ Error al inicializar sesión:', error);
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔄 Cambio de estado de auth:', event);
+      await handleUserSession(session);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Función auxiliar para obtener usuario Y rol
   const handleUserSession = async (session) => {
-    if (session?.user) {
-      setUser(session.user);
-      
-      // Consultamos la tabla perfiles
-      const { data } = await supabase
-        .from('perfiles')
-        .select('rol')
-        .eq('id', session.user.id)
-        .single();
-      
-      setRole(data?.rol || 'cliente'); // Si no hay dato, asume cliente por seguridad
-    } else {
-      setUser(null);
-      setRole(null);
+    try {
+      if (session?.user) {
+        setUser(session.user);
+
+        const { data } = await supabase
+          .from('perfiles')
+          .select('rol')
+          .eq('id', session.user.id)
+          .single();
+
+        setRole(data?.rol || 'cliente');
+        console.log('👤 Usuario establecido:', session.user.email, 'Rol:', data?.rol || 'cliente');
+      } else {
+        setUser(null);
+        setRole(null);
+        console.log('👤 Usuario limpiado');
+      }
+    } catch (error) {
+      console.error('❌ Error al manejar sesión:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const signOut = async () => {
@@ -49,7 +71,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    // Exponemos 'role' al resto de la app
     <AuthContext.Provider value={{ user, role, loading, signOut }}>
       {!loading && children}
     </AuthContext.Provider>

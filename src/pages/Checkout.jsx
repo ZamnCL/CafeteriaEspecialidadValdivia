@@ -45,8 +45,8 @@ function Checkout() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ type: '', text: '' });
-  const [tipoEntrega, setTipoEntrega] = useState('delivery'); 
-  const [metodoPago, setMetodoPago] = useState('transferencia'); // Por defecto
+  const [tipoEntrega, setTipoEntrega] = useState('delivery');
+  const [metodoPago, setMetodoPago] = useState('webpay');
   const [erroresStock, setErroresStock] = useState({});
 
   const [datosEnvio, setDatosEnvio] = useState({
@@ -137,30 +137,26 @@ function Checkout() {
     setMsg({ type: '', text: '' });
     setErroresStock({});
 
-    // Validaciones Básicas
     if (!datosEnvio.rut || !validarRut(datosEnvio.rut)) return setMsg({ type: 'warning', text: 'RUT inválido.' });
     if (!datosEnvio.email) return setMsg({ type: 'warning', text: 'Email obligatorio.' });
     if (!telefonoInput || telefonoInput.length < 8) return setMsg({ type: 'warning', text: 'Teléfono inválido (8 dígitos).' });
     if (tipoEntrega === 'delivery' && (!datosEnvio.direccion || !datosEnvio.ciudad || !datosEnvio.region)) {
       return setMsg({ type: 'warning', text: 'Dirección incompleta.' });
     }
-    // Validación específica Transferencia
-    if (metodoPago === 'transferencia' && !file) return setMsg({ type: 'warning', text: 'Debes subir el comprobante.' });
 
     setLoading(true);
 
     try {
-      // 1. VALIDACIÓN STOCK
       const nuevosErrores = {};
       let hayErrorStock = false;
       for (const item of itemsAProcesar) {
-        if (!item.reserva) { 
+        if (!item.reserva) {
             const { data: formatoDb, error: stockError } = await supabase
               .from('formatos')
               .select('stock')
               .eq('id_formato', item.id_formato)
               .single();
-            
+
             if (stockError) {
                 console.error("Error consultando stock:", stockError);
                 throw new Error("Error verificando disponibilidad de productos.");
@@ -179,44 +175,26 @@ function Checkout() {
           return setMsg({ type: 'danger', text: 'Hay productos sin stock suficiente.' });
       }
 
-      // 2. SUBIDA COMPROBANTE (Solo Transferencia)
-      let comprobanteUrl = null;
-      if (metodoPago === 'transferencia' && file) {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-          const { error: uploadError } = await supabase.storage.from('comprobantes').upload(fileName, file);
-          
-          if (uploadError) {
-              console.error("Error subida archivo:", uploadError);
-              throw new Error("Error al subir el comprobante.");
-          }
-          
-          const { data } = supabase.storage.from('comprobantes').getPublicUrl(fileName);
-          comprobanteUrl = data.publicUrl;
-      }
-
-      // 3. CREAR ORDEN
       const telefonoCompleto = `+56 9 ${telefonoInput}`;
-      const estadoInicial = metodoPago === 'webpay' ? 'Pendiente Pago' : 'Por Confirmar';
 
       const { data: ordenData, error: ordenError } = await supabase.from('ordenes').insert([{
-          user_id: user.id, 
-          nombre: user.user_metadata?.nombre || 'Cliente', 
-          apellido: user.user_metadata?.apellido || '', 
-          rut: datosEnvio.rut, 
-          email_contact: datosEnvio.email, 
-          email: user.email, 
+          user_id: user.id,
+          nombre: user.user_metadata?.nombre || 'Cliente',
+          apellido: user.user_metadata?.apellido || '',
+          rut: datosEnvio.rut,
+          email_contact: datosEnvio.email,
+          email: user.email,
           telefono: telefonoCompleto,
-          direccion: tipoEntrega === 'retiro' ? 'Retiro en Tienda' : datosEnvio.direccion, 
-          ciudad: tipoEntrega === 'retiro' ? 'Valdivia' : datosEnvio.ciudad, 
+          direccion: tipoEntrega === 'retiro' ? 'Retiro en Tienda' : datosEnvio.direccion,
+          ciudad: tipoEntrega === 'retiro' ? 'Valdivia' : datosEnvio.ciudad,
           region: tipoEntrega === 'retiro' ? 'Los Ríos' : datosEnvio.region,
-          tipo_entrega: tipoEntrega, 
-          metodo_pago: metodoPago, 
-          subtotal: totalProductos, 
-          costo_envio: costoEnvio, 
-          total: totalFinal, 
-          estado: estadoInicial, 
-          comprobante: comprobanteUrl
+          tipo_entrega: tipoEntrega,
+          metodo_pago: 'webpay',
+          subtotal: totalProductos,
+          costo_envio: costoEnvio,
+          total: totalFinal,
+          estado: 'Pendiente Pago',
+          comprobante: null
         }]).select().single();
 
       if (ordenError) {
@@ -224,56 +202,46 @@ function Checkout() {
           throw new Error("Error al crear la orden en base de datos.");
       }
 
-      // 4. GUARDAR DETALLES
-      const detalles = itemsAProcesar.map(item => ({ 
-          id_orden: ordenData.id_orden, 
-          id_producto: item.id_producto, 
-          id_formato: item.id_formato, 
-          cantidad: item.cantidad, 
-          precio_unitario: item.formato?.precio || 0, 
-          subtotal_item: (item.formato?.precio || 0) * item.cantidad, 
-          nombre_producto: item.producto?.nombre || "Producto", 
-          formato_nombre: item.formato?.nombre || "Estándar", 
-          datos_reserva: item.reserva 
+      const detalles = itemsAProcesar.map(item => ({
+          id_orden: ordenData.id_orden,
+          id_producto: item.id_producto,
+          id_formato: item.id_formato,
+          cantidad: item.cantidad,
+          precio_unitario: item.formato?.precio || 0,
+          subtotal_item: (item.formato?.precio || 0) * item.cantidad,
+          nombre_producto: item.producto?.nombre || "Producto",
+          formato_nombre: item.formato?.nombre || "Estándar",
+          datos_reserva: item.reserva
       }));
 
       const { error: detallesError } = await supabase.from('detalles_orden').insert(detalles);
       if (detallesError) throw detallesError;
 
-      // 5. DESVÍO DE FLUJO (Aquí es donde podía fallar MP)
-      if (metodoPago === 'webpay') {
-          console.log("Iniciando función Mercado Pago..."); // LOG para depurar
-          const { data: responseData, error: funcError } = await supabase.functions.invoke('mercado_pago', {
-             body: {
-               items: itemsAProcesar,
-               orderId: ordenData.id_orden,
-               userEmail: datosEnvio.email
-             }
-           });
+      console.log("Iniciando función Mercado Pago...");
+      const { data: responseData, error: funcError } = await supabase.functions.invoke('mercado_pago', {
+         body: {
+           items: itemsAProcesar,
+           orderId: ordenData.id_orden,
+           userEmail: datosEnvio.email
+         }
+       });
 
-           if (funcError) {
-               console.error("Error Edge Function:", funcError);
-               throw new Error(`Error conectando con Mercado Pago: ${funcError.message}`);
-           }
-           
-           if (responseData?.init_point) {
-             window.location.href = responseData.init_point;
-           } else {
-             console.error("Respuesta MP inválida:", responseData);
-             throw new Error('Mercado Pago no devolvió el link de pago.');
-           }
+       if (funcError) {
+           console.error("Error Edge Function:", funcError);
+           throw new Error(`Error conectando con Mercado Pago: ${funcError.message}`);
+       }
 
-      } else {
-          // FLUJO TRANSFERENCIA
-          enviarNotificacionCorreo(ordenData.id_orden);
-          if (!esCompraDirecta) clearCart();
-          navigate('/compra-exitosa');
-      }
+       if (responseData?.init_point) {
+         window.location.href = responseData.init_point;
+       } else {
+         console.error("Respuesta MP inválida:", responseData);
+         throw new Error('Mercado Pago no devolvió el link de pago.');
+       }
 
-    } catch (error) { 
+    } catch (error) {
         console.error("Error en proceso compra:", error);
-        setMsg({ type: 'danger', text: error.message }); 
-        setLoading(false); 
+        setMsg({ type: 'danger', text: error.message });
+        setLoading(false);
     }
   };
 
@@ -343,65 +311,24 @@ function Checkout() {
             </Card.Body>
           </Card>
           
-          {/* 3. PAGO - SECCIÓN REDISEÑADA */}
+          {/* 3. PAGO */}
           <Card className="shadow-sm border-0 mb-4">
             <Card.Header className="bg-warning text-dark fw-bold">3. Método de Pago</Card.Header>
             <Card.Body>
-                {/* CAJAS SELECCIONABLES */}
-                <Row className="g-3 mb-3">
-                    <Col md={6}>
-                        <div 
-                            onClick={() => setMetodoPago('transferencia')}
-                            className={`p-4 border rounded text-center cursor-pointer transition-all ${metodoPago === 'transferencia' ? 'border-dark bg-light shadow-sm' : 'border-light-subtle'}`}
-                            style={{ cursor: 'pointer', borderWidth: metodoPago === 'transferencia' ? '2px' : '1px' }}
-                        >
-                            <FaExchangeAlt size={30} className="mb-2 text-muted" />
-                            <h6 className="fw-bold mb-0">Transferencia</h6>
-                            <small className="text-muted">Manual</small>
-                            {metodoPago === 'transferencia' && <FaCheckCircle className="text-success ms-2"/>}
-                        </div>
-                    </Col>
-                    <Col md={6}>
-                        <div 
-                            onClick={() => setMetodoPago('webpay')}
-                            className={`p-4 border rounded text-center cursor-pointer transition-all ${metodoPago === 'webpay' ? 'border-primary bg-blue-light shadow-sm' : 'border-light-subtle'}`}
-                            style={{ 
-                                cursor: 'pointer', 
-                                borderWidth: metodoPago === 'webpay' ? '2px' : '1px',
-                                borderColor: metodoPago === 'webpay' ? '#009ee3' : '#dee2e6' 
-                            }}
-                        >
-                            <FaCreditCard size={30} className="mb-2" style={{ color: '#009ee3' }} />
-                            <h6 className="fw-bold mb-0" style={{ color: '#009ee3' }}>Webpay / MP</h6>
-                            <small className="text-muted">Débito y Crédito</small>
-                            {metodoPago === 'webpay' && <FaCheckCircle className="text-primary ms-2"/>}
-                        </div>
-                    </Col>
-                </Row>
+                <div
+                    className="p-4 border-2 border-primary rounded text-center bg-blue-light shadow-sm"
+                    style={{ borderColor: '#009ee3' }}
+                >
+                    <FaCreditCard size={40} className="mb-3" style={{ color: '#009ee3' }} />
+                    <h5 className="fw-bold mb-2" style={{ color: '#009ee3' }}>Pago con Mercado Pago</h5>
+                    <p className="text-muted mb-0">Débito, Crédito, Webpay y más</p>
+                </div>
 
-                {/* CONTENIDO CONDICIONAL */}
-                {metodoPago === 'transferencia' ? (
-                    <div className="bg-light p-4 rounded border animate-fade-in mt-3">
-                        <h6 className="fw-bold border-bottom pb-2 mb-3">Datos para Transferencia</h6>
-                        <p className="mb-1"><strong>Banco:</strong> Banco Estado</p>
-                        <p className="mb-1"><strong>Tipo:</strong> Cuenta Vista / RUT</p>
-                        <p className="mb-1"><strong>N° Cuenta:</strong> 12.345.678-9</p>
-                        <p className="mb-1"><strong>RUT:</strong> 76.543.210-K</p>
-                        <p className="mb-3"><strong>Correo:</strong> pagos@cafevaldivia.cl</p>
-                        
-                        <Form.Group className="bg-white p-3 border rounded border-dashed">
-                            <Form.Label className="fw-bold text-danger">Subir Comprobante (Obligatorio)</Form.Label>
-                            <Form.Control type="file" onChange={handleFileChange} required />
-                            <Form.Text className="text-muted">Sube una captura o PDF de la transferencia.</Form.Text>
-                        </Form.Group>
-                    </div>
-                ) : (
-                    <Alert variant="info" className="mt-3 border-0 bg-info-subtle text-info-emphasis animate-fade-in">
-                        <FaInfoCircle className="me-2"/>
-                        Serás redirigido a la plataforma segura de <strong>Mercado Pago</strong>. 
-                        Podrás pagar con Webpay, CuentaRUT o Tarjetas. Tu pedido se aprobará automáticamente.
-                    </Alert>
-                )}
+                <Alert variant="info" className="mt-3 border-0 bg-info-subtle text-info-emphasis">
+                    <FaInfoCircle className="me-2"/>
+                    Serás redirigido a la plataforma segura de <strong>Mercado Pago</strong>.
+                    Podrás pagar con Webpay, CuentaRUT o Tarjetas. Tu pedido se aprobará automáticamente.
+                </Alert>
             </Card.Body>
           </Card>
         </Col>
