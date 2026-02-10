@@ -8,6 +8,7 @@ import { supabase } from '../supabase/cliente';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
+import '../ProductCards.css';
 
 function Cart() {
   const { cart, getCartTotal, clearCart, updateQuantity, removeFromCart, addToCart } = useCart();
@@ -28,6 +29,10 @@ function Cart() {
         const categoriasEnCarrito = [...new Set(cart.map(item => item.producto?.id_categoria).filter(Boolean))];
         const productosEnCarrito = cart.map(item => item.id_producto);
 
+        console.log('Cargando productos recomendados...');
+        console.log('Categorías en carrito:', categoriasEnCarrito);
+        console.log('Productos en carrito:', productosEnCarrito);
+
         let query = supabase
           .from('productos')
           .select(`
@@ -35,9 +40,8 @@ function Cart() {
             categoria:categoria!productos_id_categoria_fkey (nombre),
             formatos:formatos!formatos_id_producto_fkey (*)
           `)
-          .eq('activo', true)
           .not('id_producto', 'in', `(${productosEnCarrito.join(',')})`)
-          .limit(4);
+          .limit(8);
 
         if (categoriasEnCarrito.length > 0) {
           query = query.in('id_categoria', categoriasEnCarrito);
@@ -46,7 +50,14 @@ function Cart() {
         const { data, error } = await query;
 
         if (error) throw error;
-        setProductosRecomendados(data || []);
+        console.log('Productos recomendados cargados:', data);
+
+        const productosConFormatos = (data || []).filter(p =>
+          p.formatos && p.formatos.length > 0 && p.formatos.some(f => f.activo !== false)
+        );
+
+        console.log('Productos con formatos activos:', productosConFormatos);
+        setProductosRecomendados(productosConFormatos);
       } catch (error) {
         console.error('Error cargando recomendados:', error);
       } finally {
@@ -69,7 +80,7 @@ function Cart() {
       onClick={onClick}
       style={{
         position: 'absolute',
-        right: '-15px',
+        right: '-50px',
         top: '50%',
         transform: 'translateY(-50%)',
         zIndex: 10,
@@ -102,7 +113,7 @@ function Cart() {
       onClick={onClick}
       style={{
         position: 'absolute',
-        left: '-15px',
+        left: '-50px',
         top: '50%',
         transform: 'translateY(-50%)',
         zIndex: 10,
@@ -131,28 +142,31 @@ function Cart() {
   );
 
   const sliderSettings = {
-    dots: false,
-    infinite: productosRecomendados.length > 4,
+    dots: true,
+    infinite: productosRecomendados.length > 3,
     speed: 500,
-    slidesToShow: 4,
+    slidesToShow: Math.min(3, productosRecomendados.length),
     slidesToScroll: 1,
+    arrows: true,
     nextArrow: <NextArrow />,
     prevArrow: <PrevArrow />,
     responsive: [
       {
         breakpoint: 1200,
         settings: {
-          slidesToShow: 3,
+          slidesToShow: Math.min(3, productosRecomendados.length),
           slidesToScroll: 1,
-          infinite: productosRecomendados.length > 3
+          infinite: productosRecomendados.length > 3,
+          arrows: true
         }
       },
       {
         breakpoint: 992,
         settings: {
-          slidesToShow: 2,
+          slidesToShow: Math.min(2, productosRecomendados.length),
           slidesToScroll: 1,
-          infinite: productosRecomendados.length > 2
+          infinite: productosRecomendados.length > 2,
+          arrows: true
         }
       },
       {
@@ -160,7 +174,8 @@ function Cart() {
         settings: {
           slidesToShow: 1,
           slidesToScroll: 1,
-          infinite: productosRecomendados.length > 1
+          infinite: productosRecomendados.length > 1,
+          arrows: true
         }
       }
     ]
@@ -299,97 +314,70 @@ function Cart() {
               <h3 className="mb-4 fw-bold" style={{color: '#2c2c2c', fontSize: '1.5rem'}}>
                 También te puede interesar
               </h3>
-              <div style={{position: 'relative', padding: '0 30px'}}>
+              <div style={{position: 'relative', padding: '0 60px'}}>
                 <Slider {...sliderSettings}>
-                  {productosRecomendados.map((producto) => (
-                    <div key={producto.id_producto} style={{padding: '0 10px'}}>
-                      <Card
-                        className="border-0 shadow-sm h-100"
-                        style={{
-                          borderRadius: '12px',
-                          overflow: 'hidden',
-                          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                          cursor: 'pointer'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-4px)';
-                          e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '';
-                        }}
-                      >
-                        <Link to={`/producto/${producto.id_producto}`} className="text-decoration-none">
-                          <div
-                            style={{
-                              height: '180px',
-                              overflow: 'hidden',
-                              backgroundColor: '#f8f9fa'
-                            }}
-                          >
-                            {producto.imagen ? (
-                              <img
-                                src={producto.imagen}
-                                alt={producto.nombre}
-                                style={{
-                                  width: '100%',
-                                  height: '100%',
-                                  objectFit: 'cover'
-                                }}
-                              />
-                            ) : (
-                              <div className="w-100 h-100 d-flex align-items-center justify-content-center">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                                  <polyline points="21 15 16 10 5 21"></polyline>
-                                </svg>
+                  {productosRecomendados.map((producto) => {
+                    const formatos = (producto.formatos || []).filter(f => f.activo !== false);
+                    const precios = formatos.map(f => f.precio);
+                    const precioMinimo = precios.length > 0 ? Math.min(...precios) : 0;
+                    const tieneVariaciones = formatos.length > 1;
+
+                    return (
+                      <div key={producto.id_producto} style={{padding: '0 15px', height: '100%'}}>
+                        <Link to={`/producto/${producto.id_producto}`} className="text-decoration-none h-100 d-block">
+                          <div className="card-aesthetic h-100" style={{display: 'flex', flexDirection: 'column'}}>
+                            <div className="image-container-square position-relative">
+                              {producto.imagen ? (
+                                <img src={producto.imagen} alt={producto.nombre} loading="lazy" />
+                              ) : (
+                                <div className="d-flex align-items-center justify-content-center h-100 text-muted bg-light">
+                                  <small className="fw-bold text-uppercase text-center px-2">Sin Imagen</small>
+                                </div>
+                              )}
+                            </div>
+
+                            <div style={{
+                              width: '100%',
+                              height: '1px',
+                              backgroundColor: '#e0e0e0',
+                              margin: '0'
+                            }}></div>
+
+                            <div className="card-body-aesthetic" style={{flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
+                              <div>
+                                <div className="category-tag">{producto.categoria?.nombre}</div>
+                                <h3 className="product-title" style={{
+                                  minHeight: '2.8em',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden'
+                                }}>{producto.nombre}</h3>
+                                <div className="price-tag">
+                                  {tieneVariaciones && <span className="fw-normal text-muted small me-1">Desde</span>}
+                                  ${precioMinimo.toLocaleString('es-CL')}
+                                </div>
                               </div>
-                            )}
+
+                              <div className="mt-auto w-100">
+                                <button
+                                  className={`btn-aesthetic ${tieneVariaciones ? 'outline' : ''}`}
+                                  onClick={(e) => {
+                                    if (!tieneVariaciones) {
+                                      e.preventDefault();
+                                      agregarRecomendado(producto);
+                                    }
+                                  }}
+                                >
+                                  {tieneVariaciones ? 'Ver Opciones' : 'Agregar al Carrito'}
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </Link>
-                        <Card.Body className="p-3">
-                          <Link to={`/producto/${producto.id_producto}`} className="text-decoration-none">
-                            <h6
-                              className="mb-2 fw-bold"
-                              style={{
-                                color: '#2c2c2c',
-                                fontSize: '0.9rem',
-                                lineHeight: '1.3',
-                                height: '2.6em',
-                                overflow: 'hidden',
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical'
-                              }}
-                            >
-                              {producto.nombre}
-                            </h6>
-                          </Link>
-                          {producto.formatos && producto.formatos.length > 0 && (
-                            <p className="mb-2 fw-bold" style={{color: '#2c2c2c', fontSize: '1rem'}}>
-                              ${producto.formatos[0].precio.toLocaleString('es-CL')}
-                            </p>
-                          )}
-                          <Button
-                            size="sm"
-                            className="w-100 border-0"
-                            style={{
-                              backgroundColor: '#2c2c2c',
-                              borderRadius: '6px',
-                              fontSize: '0.85rem',
-                              padding: '8px',
-                              fontWeight: '600'
-                            }}
-                            onClick={() => agregarRecomendado(producto)}
-                          >
-                            Agregar
-                          </Button>
-                        </Card.Body>
-                      </Card>
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </Slider>
               </div>
             </div>
