@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button, Alert, Spinner, ListGroup } from 'react-bootstrap';
+import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabase/cliente';
 import { useNavigate, useLocation } from 'react-router-dom';
 import emailjs from '@emailjs/browser';
-import { FaTruck, FaStore, FaInfoCircle, FaTrash, FaExclamationTriangle, FaCreditCard, FaExchangeAlt, FaCheckCircle } from 'react-icons/fa';
+import { FaTruck, FaStore, FaInfoCircle, FaCreditCard, FaCheckCircle, FaLock } from 'react-icons/fa';
 
-// ... (Mantenemos constantes y funciones auxiliares igual) ...
 const REGIONES_CHILE = [
-  "Arica y Parinacota", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo", 
-  "Valparaíso", "Metropolitana", "O'Higgins", "Maule", "Ñuble", "Biobío", 
+  "Arica y Parinacota", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo",
+  "Valparaíso", "Metropolitana", "O'Higgins", "Maule", "Ñuble", "Biobío",
   "La Araucanía", "Los Ríos", "Los Lagos", "Aysén", "Magallanes"
 ];
 
@@ -41,7 +40,7 @@ function Checkout() {
   const itemsCompraDirecta = location.state?.compraDirecta;
   const itemsAProcesar = itemsCompraDirecta || cart;
   const esCompraDirecta = !!itemsCompraDirecta;
-  
+
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ type: '', text: '' });
@@ -52,7 +51,7 @@ function Checkout() {
   const [datosEnvio, setDatosEnvio] = useState({
     rut: '', email: '', direccion: '', ciudad: '', region: ''
   });
-  
+
   const [telefonoInput, setTelefonoInput] = useState('');
 
   const tienePreparaciones = itemsAProcesar.some(item => {
@@ -70,8 +69,8 @@ function Checkout() {
     if (!authLoading && !user) { alert("Debes iniciar sesión."); navigate('/login'); }
   }, [user, authLoading, navigate]);
 
-  useEffect(() => { 
-    if (user?.email) setDatosEnvio(prev => ({ ...prev, email: user.email })); 
+  useEffect(() => {
+    if (user?.email) setDatosEnvio(prev => ({ ...prev, email: user.email }));
   }, [user]);
 
   useEffect(() => { setErroresStock({}); }, [itemsAProcesar]);
@@ -80,8 +79,8 @@ function Checkout() {
       const precio = item.formato?.precio || 0;
       return acc + (precio * item.cantidad);
   }, 0);
-  
-  const costoEnvio = tipoEntrega === 'retiro' ? 0 : 5000; 
+
+  const costoEnvio = tipoEntrega === 'retiro' ? 0 : 5000;
   const totalFinal = totalProductos + costoEnvio;
 
   if (authLoading) return <Container className="mt-5 text-center"><Spinner animation="border" /></Container>;
@@ -89,11 +88,11 @@ function Checkout() {
 
   const handleFileChange = (e) => { if (e.target.files && e.target.files[0]) setFile(e.target.files[0]); };
   const handleInputChange = (e) => { setDatosEnvio({ ...datosEnvio, [e.target.name]: e.target.value }); };
-  
-  const handleRutChange = (e) => { 
-    let val = e.target.value.replace(/[^0-9kK]/g, ''); 
-    if (val.length > 9) return; 
-    setDatosEnvio({ ...datosEnvio, rut: val }); 
+
+  const handleRutChange = (e) => {
+    let val = e.target.value.replace(/[^0-9kK]/g, '');
+    if (val.length > 9) return;
+    setDatosEnvio({ ...datosEnvio, rut: val });
   };
 
   const handleTelefonoChange = (e) => {
@@ -103,12 +102,10 @@ function Checkout() {
   };
 
   const enviarNotificacionCorreo = (ordenId) => {
-    const serviceID = 'service_94ynerp'; 
-    const templateID = 'template_feryfg1'; 
+    const serviceID = 'service_94ynerp';
+    const templateID = 'template_feryfg1';
     const publicKey = 'BBJajnSVNxciJjOo3';
-    
-    // ... (Lógica de correo igual que antes) ...
-    // Para simplificar el código aquí, asumo que mantienes esta función igual
+
     const itemsHtml = itemsAProcesar.map(item => {
         const nombreProd = item.producto?.nombre || "Producto";
         const nombreFmt = item.formato?.nombre || "N/A";
@@ -118,16 +115,16 @@ function Checkout() {
 
     const direccionFinal = tipoEntrega === 'retiro' ? 'RETIRO EN TIENDA' : `${datosEnvio.direccion}, ${datosEnvio.ciudad}, ${datosEnvio.region}`;
     const nombreCliente = user.user_metadata?.nombre || user.email?.split('@')[0] || "Cliente";
-    
+
     emailjs.send(serviceID, templateID, {
       to_name: nombreCliente,
-      to_email: datosEnvio.email, 
-      order_id: ordenId, 
-      total: totalFinal.toLocaleString('es-CL'), 
-      tabla_productos: itemsHtml, 
-      customer_address: direccionFinal, 
-      customer_phone: `+56 9 ${telefonoInput}`, 
-      rut_cliente: datosEnvio.rut, 
+      to_email: datosEnvio.email,
+      order_id: ordenId,
+      total: totalFinal.toLocaleString('es-CL'),
+      tabla_productos: itemsHtml,
+      customer_address: direccionFinal,
+      customer_phone: `+56 9 ${telefonoInput}`,
+      rut_cliente: datosEnvio.rut,
       tipo_entrega: tipoEntrega
     }, publicKey).catch(err => console.error('Error email:', err));
   };
@@ -246,124 +243,392 @@ function Checkout() {
   };
 
   return (
-    <Container className="my-5">
-      <h2 className="mb-4 fw-bold text-coffee-title">{esCompraDirecta ? 'Compra Rápida' : 'Finalizar Compra'}</h2>
-      {msg.text && <Alert variant={msg.type} className="shadow-sm">{msg.text}</Alert>}
-      
-      {tienePreparaciones && (
-        <Alert variant="warning" className="d-flex align-items-center mb-4"><FaInfoCircle className="me-3"/>Solo retiro en tienda.</Alert>
+    <Container className="my-5" style={{maxWidth: '1200px'}}>
+      <div className="mb-5">
+        <h1 className="mb-2 fw-bold" style={{color: '#2c2c2c', fontSize: '2.5rem', letterSpacing: '-0.5px'}}>
+          {esCompraDirecta ? 'Compra Rápida' : 'Finalizar Compra'}
+        </h1>
+        <p className="text-muted" style={{fontSize: '1rem'}}>
+          Completa tus datos para procesar el pedido
+        </p>
+      </div>
+
+      {msg.text && (
+        <Alert
+          variant={msg.type}
+          className="mb-4 border-0 shadow-sm"
+          style={{borderRadius: '12px'}}
+        >
+          {msg.text}
+        </Alert>
       )}
 
-      <Row>
-        <Col md={7}>
-          {/* 1. ENTREGA */}
-          <Card className="mb-4 shadow-sm border-0">
-            <Card.Header className="bg-white fw-bold">1. Método de Entrega</Card.Header>
-            <Card.Body>
-              <div className="d-flex gap-3">
-                <Button 
-                  onClick={() => !tienePreparaciones && setTipoEntrega('delivery')} 
-                  className="flex-grow-1 py-3"
-                  disabled={tienePreparaciones} 
-                  variant={tipoEntrega === 'delivery' ? 'dark' : 'outline-secondary'}
+      {tienePreparaciones && (
+        <Alert
+          variant="warning"
+          className="d-flex align-items-center mb-4 border-0 shadow-sm"
+          style={{borderRadius: '12px', backgroundColor: '#fff3cd'}}
+        >
+          <FaInfoCircle className="me-3" size={20}/>
+          <span>Este pedido incluye preparaciones y solo está disponible para retiro en tienda.</span>
+        </Alert>
+      )}
+
+      <Row className="g-4">
+        <Col lg={7}>
+          <Card className="mb-4 border-0 shadow-sm" style={{borderRadius: '16px', overflow: 'hidden'}}>
+            <Card.Body className="p-4">
+              <div className="d-flex align-items-center mb-4">
+                <div
+                  className="d-flex align-items-center justify-content-center me-3"
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    backgroundColor: '#2c2c2c',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '1.2rem'
+                  }}
                 >
-                  <FaTruck className="me-2"/> Envío
-                </Button>
-                <Button 
-                  onClick={() => setTipoEntrega('retiro')} 
-                  className="flex-grow-1 py-3"
-                  variant={tipoEntrega === 'retiro' ? 'dark' : 'outline-secondary'}
-                >
-                  <FaStore className="me-2"/> Retiro
-                </Button>
+                  1
+                </div>
+                <h4 className="mb-0 fw-bold" style={{color: '#2c2c2c', fontSize: '1.3rem'}}>
+                  Método de Entrega
+                </h4>
               </div>
+
+              <Row className="g-3">
+                <Col xs={6}>
+                  <div
+                    onClick={() => !tienePreparaciones && setTipoEntrega('delivery')}
+                    style={{
+                      border: tipoEntrega === 'delivery' ? '2px solid #2c2c2c' : '2px solid #e0e0e0',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      cursor: tienePreparaciones ? 'not-allowed' : 'pointer',
+                      backgroundColor: tipoEntrega === 'delivery' ? '#f8f9fa' : 'white',
+                      opacity: tienePreparaciones ? 0.5 : 1,
+                      transition: 'all 0.2s ease',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <FaTruck size={32} className="mb-2" style={{color: tipoEntrega === 'delivery' ? '#2c2c2c' : '#999'}} />
+                    <div className="fw-bold" style={{color: '#2c2c2c', fontSize: '1rem'}}>Envío a Domicilio</div>
+                    <small className="text-muted">$5.000</small>
+                  </div>
+                </Col>
+                <Col xs={6}>
+                  <div
+                    onClick={() => setTipoEntrega('retiro')}
+                    style={{
+                      border: tipoEntrega === 'retiro' ? '2px solid #2c2c2c' : '2px solid #e0e0e0',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      cursor: 'pointer',
+                      backgroundColor: tipoEntrega === 'retiro' ? '#f8f9fa' : 'white',
+                      transition: 'all 0.2s ease',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <FaStore size={32} className="mb-2" style={{color: tipoEntrega === 'retiro' ? '#2c2c2c' : '#999'}} />
+                    <div className="fw-bold" style={{color: '#2c2c2c', fontSize: '1rem'}}>Retiro en Tienda</div>
+                    <small className="text-muted">Gratis</small>
+                  </div>
+                </Col>
+              </Row>
             </Card.Body>
           </Card>
 
-          {/* 2. CONTACTO */}
-          <Card className="mb-4 shadow-sm border-0">
-            <Card.Header className="bg-white fw-bold">2. Datos de Contacto</Card.Header>
-            <Card.Body>
-              <Form>
-                <Row>
-                  <Col md={6}><Form.Control placeholder="Email" name="email" value={datosEnvio.email} onChange={handleInputChange} className="mb-3" /></Col>
-                  <Col md={6}><Form.Control placeholder="RUT" name="rut" value={datosEnvio.rut} onChange={handleRutChange} className="mb-3" /></Col>
-                </Row>
-                <div className="input-group mb-3">
-                    <span className="input-group-text">+56 9</span>
-                    <Form.Control placeholder="Teléfono" value={telefonoInput} onChange={handleTelefonoChange} />
+          <Card className="mb-4 border-0 shadow-sm" style={{borderRadius: '16px', overflow: 'hidden'}}>
+            <Card.Body className="p-4">
+              <div className="d-flex align-items-center mb-4">
+                <div
+                  className="d-flex align-items-center justify-content-center me-3"
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    backgroundColor: '#2c2c2c',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '1.2rem'
+                  }}
+                >
+                  2
                 </div>
+                <h4 className="mb-0 fw-bold" style={{color: '#2c2c2c', fontSize: '1.3rem'}}>
+                  Datos de Contacto
+                </h4>
+              </div>
+
+              <Form>
+                <Row className="g-3">
+                  <Col md={6}>
+                    <Form.Label className="fw-semibold small text-muted">Email</Form.Label>
+                    <Form.Control
+                      placeholder="correo@ejemplo.com"
+                      name="email"
+                      value={datosEnvio.email}
+                      onChange={handleInputChange}
+                      style={{
+                        borderRadius: '8px',
+                        border: '1.5px solid #e0e0e0',
+                        padding: '12px'
+                      }}
+                    />
+                  </Col>
+                  <Col md={6}>
+                    <Form.Label className="fw-semibold small text-muted">RUT</Form.Label>
+                    <Form.Control
+                      placeholder="12345678-9"
+                      name="rut"
+                      value={datosEnvio.rut}
+                      onChange={handleRutChange}
+                      style={{
+                        borderRadius: '8px',
+                        border: '1.5px solid #e0e0e0',
+                        padding: '12px'
+                      }}
+                    />
+                  </Col>
+                </Row>
+
+                <div className="mt-3">
+                  <Form.Label className="fw-semibold small text-muted">Teléfono</Form.Label>
+                  <div className="input-group">
+                    <span
+                      className="input-group-text"
+                      style={{
+                        borderRadius: '8px 0 0 8px',
+                        border: '1.5px solid #e0e0e0',
+                        backgroundColor: '#f8f9fa'
+                      }}
+                    >
+                      +56 9
+                    </span>
+                    <Form.Control
+                      placeholder="12345678"
+                      value={telefonoInput}
+                      onChange={handleTelefonoChange}
+                      style={{
+                        borderRadius: '0 8px 8px 0',
+                        border: '1.5px solid #e0e0e0',
+                        borderLeft: 'none',
+                        padding: '12px'
+                      }}
+                    />
+                  </div>
+                </div>
+
                 {tipoEntrega === 'delivery' && (
                   <>
-                    <Row>
+                    <Row className="g-3 mt-3">
                       <Col md={6}>
-                          <Form.Select name="region" value={datosEnvio.region} onChange={handleInputChange} className="mb-3">
-                            <option value="">Región...</option>
-                            {REGIONES_CHILE.map(r => <option key={r} value={r}>{r}</option>)}
-                          </Form.Select>
+                        <Form.Label className="fw-semibold small text-muted">Región</Form.Label>
+                        <Form.Select
+                          name="region"
+                          value={datosEnvio.region}
+                          onChange={handleInputChange}
+                          style={{
+                            borderRadius: '8px',
+                            border: '1.5px solid #e0e0e0',
+                            padding: '12px'
+                          }}
+                        >
+                          <option value="">Selecciona una región...</option>
+                          {REGIONES_CHILE.map(r => <option key={r} value={r}>{r}</option>)}
+                        </Form.Select>
                       </Col>
-                      <Col md={6}><Form.Control placeholder="Ciudad" name="ciudad" onChange={handleInputChange} className="mb-3" /></Col>
+                      <Col md={6}>
+                        <Form.Label className="fw-semibold small text-muted">Ciudad</Form.Label>
+                        <Form.Control
+                          placeholder="Ej: Valdivia"
+                          name="ciudad"
+                          value={datosEnvio.ciudad}
+                          onChange={handleInputChange}
+                          style={{
+                            borderRadius: '8px',
+                            border: '1.5px solid #e0e0e0',
+                            padding: '12px'
+                          }}
+                        />
+                      </Col>
                     </Row>
-                    <Form.Control placeholder="Dirección y número" name="direccion" onChange={handleInputChange} className="mb-3" />
+                    <div className="mt-3">
+                      <Form.Label className="fw-semibold small text-muted">Dirección</Form.Label>
+                      <Form.Control
+                        placeholder="Calle, número, depto/casa"
+                        name="direccion"
+                        value={datosEnvio.direccion}
+                        onChange={handleInputChange}
+                        style={{
+                          borderRadius: '8px',
+                          border: '1.5px solid #e0e0e0',
+                          padding: '12px'
+                        }}
+                      />
+                    </div>
                   </>
                 )}
               </Form>
             </Card.Body>
           </Card>
-          
-          {/* 3. PAGO */}
-          <Card className="shadow-sm border-0 mb-4">
-            <Card.Header className="bg-warning text-dark fw-bold">3. Método de Pago</Card.Header>
-            <Card.Body>
-                <div
-                    className="p-4 border-2 border-primary rounded text-center bg-blue-light shadow-sm"
-                    style={{ borderColor: '#009ee3' }}
-                >
-                    <FaCreditCard size={40} className="mb-3" style={{ color: '#009ee3' }} />
-                    <h5 className="fw-bold mb-2" style={{ color: '#009ee3' }}>Pago con Mercado Pago</h5>
-                    <p className="text-muted mb-0">Débito, Crédito, Webpay y más</p>
-                </div>
 
-                <Alert variant="info" className="mt-3 border-0 bg-info-subtle text-info-emphasis">
-                    <FaInfoCircle className="me-2"/>
+          <Card className="border-0 shadow-sm" style={{borderRadius: '16px', overflow: 'hidden'}}>
+            <Card.Body className="p-4">
+              <div className="d-flex align-items-center mb-4">
+                <div
+                  className="d-flex align-items-center justify-content-center me-3"
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    backgroundColor: '#2c2c2c',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '1.2rem'
+                  }}
+                >
+                  3
+                </div>
+                <h4 className="mb-0 fw-bold" style={{color: '#2c2c2c', fontSize: '1.3rem'}}>
+                  Método de Pago
+                </h4>
+              </div>
+
+              <div
+                className="p-4 rounded text-center"
+                style={{
+                  border: '2px solid #009ee3',
+                  borderRadius: '12px',
+                  backgroundColor: '#f0f9ff'
+                }}
+              >
+                <FaCreditCard size={48} className="mb-3" style={{ color: '#009ee3' }} />
+                <h5 className="fw-bold mb-2" style={{ color: '#009ee3' }}>Mercado Pago</h5>
+                <p className="text-muted mb-0" style={{fontSize: '0.9rem'}}>
+                  Débito, Crédito, Webpay y más opciones
+                </p>
+              </div>
+
+              <Alert
+                variant="info"
+                className="mt-3 border-0"
+                style={{
+                  backgroundColor: '#e7f3ff',
+                  borderRadius: '12px',
+                  color: '#0066cc'
+                }}
+              >
+                <div className="d-flex align-items-start">
+                  <FaInfoCircle className="me-2 mt-1" size={16}/>
+                  <small>
                     Serás redirigido a la plataforma segura de <strong>Mercado Pago</strong>.
                     Podrás pagar con Webpay, CuentaRUT o Tarjetas. Tu pedido se aprobará automáticamente.
-                </Alert>
+                  </small>
+                </div>
+              </Alert>
             </Card.Body>
           </Card>
         </Col>
 
-        <Col md={5}>
-          {/* RESUMEN (Igual que antes) */}
-          <Card className="shadow-sm border-0 sticky-top" style={{ top: '100px' }}>
-            <Card.Header className="bg-dark text-white fw-bold">Resumen</Card.Header>
-            <Card.Body>
-              <ListGroup variant="flush" className="mb-3">
-                {itemsAProcesar.map((item, idx) => (
-                    <ListGroup.Item key={idx} className="px-0 py-2">
-                        <div className="d-flex justify-content-between">
-                            <small>{item.producto?.nombre} x {item.cantidad}</small>
-                            <small>${((item.formato?.precio||0)*item.cantidad).toLocaleString('es-CL')}</small>
+        <Col lg={5}>
+          <div className="sticky-top" style={{ top: '100px' }}>
+            <Card className="border-0 shadow-lg" style={{borderRadius: '16px', overflow: 'hidden'}}>
+              <Card.Body className="p-4">
+                <h4 className="mb-4 fw-bold" style={{color: '#2c2c2c', fontSize: '1.5rem'}}>
+                  Resumen del Pedido
+                </h4>
+
+                <div className="mb-4">
+                  {itemsAProcesar.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="d-flex justify-content-between align-items-start mb-3 pb-3"
+                      style={{
+                        borderBottom: idx < itemsAProcesar.length - 1 ? '1px solid #f0f0f0' : 'none'
+                      }}
+                    >
+                      <div className="flex-grow-1">
+                        <div className="fw-semibold" style={{color: '#2c2c2c', fontSize: '0.95rem'}}>
+                          {item.producto?.nombre}
                         </div>
-                        {erroresStock[`${item.id_producto}-${item.id_formato}`] && <div className="text-danger small fw-bold">{erroresStock[`${item.id_producto}-${item.id_formato}`]}</div>}
-                    </ListGroup.Item>
-                ))}
-              </ListGroup>
-              <div className="d-flex justify-content-between fw-bold fs-5 text-coffee">
-                <span>Total:</span><span>${totalFinal.toLocaleString('es-CL')}</span>
-              </div>
-              <Button 
-                variant={metodoPago === 'webpay' ? "primary" : "success"} 
-                size="lg" 
-                className="w-100 mt-3 border-0 fw-bold" 
-                onClick={procesarCompra} 
-                disabled={loading}
-                style={{ backgroundColor: metodoPago === 'webpay' ? '#009ee3' : '#28a745' }}
-              >
-                {loading ? <Spinner size="sm"/> : (metodoPago === 'webpay' ? 'Pagar con Mercado Pago' : 'Finalizar Pedido')}
-              </Button>
-            </Card.Body>
-          </Card>
+                        <small className="text-muted">
+                          {item.formato?.nombre} × {item.cantidad}
+                        </small>
+                        {erroresStock[`${item.id_producto}-${item.id_formato}`] && (
+                          <div className="text-danger small fw-bold mt-1">
+                            {erroresStock[`${item.id_producto}-${item.id_formato}`]}
+                          </div>
+                        )}
+                      </div>
+                      <div className="fw-semibold" style={{color: '#2c2c2c'}}>
+                        ${((item.formato?.precio||0)*item.cantidad).toLocaleString('es-CL')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mb-4">
+                  <div className="d-flex justify-content-between mb-2">
+                    <span style={{color: '#666'}}>Subtotal</span>
+                    <span className="fw-semibold" style={{color: '#2c2c2c'}}>
+                      ${totalProductos.toLocaleString('es-CL')}
+                    </span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span style={{color: '#666'}}>Envío</span>
+                    <span className="fw-semibold" style={{color: costoEnvio === 0 ? '#4CAF50' : '#2c2c2c'}}>
+                      {costoEnvio === 0 ? 'Gratis' : `$${costoEnvio.toLocaleString('es-CL')}`}
+                    </span>
+                  </div>
+                </div>
+
+                <div
+                  className="d-flex justify-content-between align-items-center py-3 mb-4"
+                  style={{borderTop: '2px solid #f0f0f0', borderBottom: '2px solid #f0f0f0'}}
+                >
+                  <span className="fw-bold text-uppercase" style={{color: '#2c2c2c', fontSize: '1.1rem', letterSpacing: '1px'}}>
+                    Total
+                  </span>
+                  <span className="fw-bold" style={{color: '#2c2c2c', fontSize: '2rem'}}>
+                    ${totalFinal.toLocaleString('es-CL')}
+                  </span>
+                </div>
+
+                <Button
+                  size="lg"
+                  className="w-100 border-0 fw-bold py-3 mb-3"
+                  onClick={procesarCompra}
+                  disabled={loading}
+                  style={{
+                    backgroundColor: '#009ee3',
+                    borderRadius: '10px',
+                    fontSize: '1.1rem',
+                    letterSpacing: '0.5px',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  {loading ? (
+                    <Spinner size="sm" animation="border"/>
+                  ) : (
+                    <>
+                      <FaCreditCard className="me-2" />
+                      Pagar con Mercado Pago
+                    </>
+                  )}
+                </Button>
+
+                <div className="text-center">
+                  <div className="d-flex align-items-center justify-content-center text-muted small">
+                    <FaLock className="me-2" size={12} />
+                    <span style={{fontSize: '0.85rem'}}>Pago 100% seguro y encriptado</span>
+                  </div>
+                </div>
+              </Card.Body>
+            </Card>
+          </div>
         </Col>
       </Row>
     </Container>

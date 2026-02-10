@@ -3,14 +3,63 @@ import { useCart } from '../context/CartContext';
 import CartItem from '../components/CartItem';
 import { Link } from 'react-router-dom';
 import { FaShippingFast, FaLock } from 'react-icons/fa';
+import { useState, useEffect } from 'react';
+import { supabase } from '../supabase/cliente';
 
 function Cart() {
-  const { cart, getCartTotal, clearCart, updateQuantity, removeFromCart } = useCart();
+  const { cart, getCartTotal, clearCart, updateQuantity, removeFromCart, addToCart } = useCart();
   const total = getCartTotal();
+  const [productosRecomendados, setProductosRecomendados] = useState([]);
+  const [loadingRecomendados, setLoadingRecomendados] = useState(false);
 
   const envioGratisMinimo = 40000;
   const faltaParaEnvioGratis = Math.max(0, envioGratisMinimo - total);
   const porcentajeEnvioGratis = Math.min(100, (total / envioGratisMinimo) * 100);
+
+  useEffect(() => {
+    const cargarRecomendados = async () => {
+      if (cart.length === 0) return;
+
+      setLoadingRecomendados(true);
+      try {
+        const categoriasEnCarrito = [...new Set(cart.map(item => item.producto?.id_categoria).filter(Boolean))];
+        const productosEnCarrito = cart.map(item => item.id_producto);
+
+        let query = supabase
+          .from('productos')
+          .select(`
+            *,
+            categoria:categoria!productos_id_categoria_fkey (nombre),
+            formatos:formatos!formatos_id_producto_fkey (*)
+          `)
+          .eq('activo', true)
+          .not('id_producto', 'in', `(${productosEnCarrito.join(',')})`)
+          .limit(4);
+
+        if (categoriasEnCarrito.length > 0) {
+          query = query.in('id_categoria', categoriasEnCarrito);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+        setProductosRecomendados(data || []);
+      } catch (error) {
+        console.error('Error cargando recomendados:', error);
+      } finally {
+        setLoadingRecomendados(false);
+      }
+    };
+
+    cargarRecomendados();
+  }, [cart]);
+
+  const agregarRecomendado = (producto) => {
+    if (!producto.formatos || producto.formatos.length === 0) return;
+
+    const formatoDefault = producto.formatos[0];
+    addToCart(producto.id_producto, formatoDefault.id_formato, 1);
+  };
 
   if (cart.length === 0) {
     return (
@@ -120,7 +169,7 @@ function Cart() {
             </Card.Body>
           </Card>
 
-          <div className="d-flex justify-content-between align-items-center">
+          <div className="d-flex justify-content-between align-items-center mb-5">
             <Link to="/catalogo" className="text-decoration-none">
               <Button
                 variant="link"
@@ -139,6 +188,105 @@ function Cart() {
               Vaciar carrito
             </Button>
           </div>
+
+          {productosRecomendados.length > 0 && (
+            <div className="mt-5">
+              <h3 className="mb-4 fw-bold" style={{color: '#2c2c2c', fontSize: '1.5rem'}}>
+                También te puede interesar
+              </h3>
+              <Row className="g-3">
+                {productosRecomendados.map((producto) => (
+                  <Col key={producto.id_producto} xs={6} md={3}>
+                    <Card
+                      className="border-0 shadow-sm h-100"
+                      style={{
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '';
+                      }}
+                    >
+                      <Link to={`/producto/${producto.id_producto}`} className="text-decoration-none">
+                        <div
+                          style={{
+                            height: '180px',
+                            overflow: 'hidden',
+                            backgroundColor: '#f8f9fa'
+                          }}
+                        >
+                          {producto.imagen ? (
+                            <img
+                              src={producto.imagen}
+                              alt={producto.nombre}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                              }}
+                            />
+                          ) : (
+                            <div className="w-100 h-100 d-flex align-items-center justify-content-center">
+                              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                      <Card.Body className="p-3">
+                        <Link to={`/producto/${producto.id_producto}`} className="text-decoration-none">
+                          <h6
+                            className="mb-2 fw-bold"
+                            style={{
+                              color: '#2c2c2c',
+                              fontSize: '0.9rem',
+                              lineHeight: '1.3',
+                              height: '2.6em',
+                              overflow: 'hidden',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical'
+                            }}
+                          >
+                            {producto.nombre}
+                          </h6>
+                        </Link>
+                        {producto.formatos && producto.formatos.length > 0 && (
+                          <p className="mb-2 fw-bold" style={{color: '#2c2c2c', fontSize: '1rem'}}>
+                            ${producto.formatos[0].precio.toLocaleString('es-CL')}
+                          </p>
+                        )}
+                        <Button
+                          size="sm"
+                          className="w-100 border-0"
+                          style={{
+                            backgroundColor: '#2c2c2c',
+                            borderRadius: '6px',
+                            fontSize: '0.85rem',
+                            padding: '8px',
+                            fontWeight: '600'
+                          }}
+                          onClick={() => agregarRecomendado(producto)}
+                        >
+                          Agregar
+                        </Button>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            </div>
+          )}
         </Col>
 
         <Col lg={4}>
