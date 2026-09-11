@@ -8,66 +8,77 @@ export const AuthProvider = ({ children }) => {
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // 1. Escuchar el estado de autenticación (sin consultas pesadas adentro)
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        console.log('🔐 Inicializando autenticación...');
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error) {
-          console.error('❌ Error al obtener sesión:', error);
-        } else if (session) {
-          console.log('✅ Sesión recuperada:', session.user.email);
-        } else {
-          console.log('ℹ️ No hay sesión activa');
-        }
-
-        await handleUserSession(session);
-      } catch (error) {
-        console.error('❌ Error al inicializar sesión:', error);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔄 Cambio de estado de auth:', event);
+      
+      if (session?.user) {
+        setUser(session.user);
+      } else {
+        setUser(null);
+        setRole(null);
         setLoading(false);
       }
-    };
-
-    initializeAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 Cambio de estado de auth:', event);
-      await handleUserSession(session);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleUserSession = async (session) => {
-    try {
-      if (session?.user) {
-        setUser(session.user);
+  // 2. Obtener el rol en un efecto separado (evita el deadlock con Supabase)
+  useEffect(() => {
+    if (!user) return;
 
-        const { data } = await supabase
+    let isMounted = true;
+
+    const fetchUserRole = async () => {
+      try {
+        console.log('🔍 Consultando rol en perfiles para:', user.email);
+        
+        // maybeSingle() evita que lance un error crítico si el perfil aún no tiene fila
+        const { data, error } = await supabase
           .from('perfiles')
           .select('rol')
-          .eq('id', session.user.id)
-          .single();
+          .eq('id', user.id)
+          .maybeSingle();
 
-        setRole(data?.rol || 'cliente');
-        console.log('👤 Usuario establecido:', session.user.email, 'Rol:', data?.rol || 'cliente');
-      } else {
-        setUser(null);
-        setRole(null);
-        console.log('👤 Usuario limpiado');
+        if (error) {
+          console.warn('⚠️ Error al consultar perfil:', error.message);
+        }
+
+        if (isMounted) {
+          const userRole = data?.rol || 'cliente';
+          setRole(userRole);
+          console.log('👤 Usuario establecido:', user.email, '| Rol:', userRole);
+        }
+      } catch (error) {
+        console.error('❌ Error al obtener rol:', error);
+        if (isMounted) setRole('cliente');
+      } finally {
+        if (isMounted) setLoading(false);
       }
-    } catch (error) {
-      console.error('❌ Error al manejar sesión:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
+    fetchUserRole();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  // 3. Cerrar sesión limpio
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setRole(null);
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (error) {
+      console.error('❌ Error al cerrar sesión:', error);
+    } finally {
+      setUser(null);
+      setRole(null);
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/';
+    }
   };
 
   return (
